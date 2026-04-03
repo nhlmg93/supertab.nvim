@@ -1,0 +1,65 @@
+*supertab.txt*   Neovim plugin for intelligent code completion using Ollama
+
+CONTENTS                                           *supertab*
+
+Introduction                                        |supertab-intro|
+Configuration                                      |supertab-config|
+Commands                                           |supertab-commands|
+Keybindings                                        |supertab-keybindings|
+
+==============================================================================
+INTRODUCTION                                        *supertab-intro*
+
+Supertab is a Neovim plugin that provides intelligent code completion using
+Ollama as the backend. It offers inline completion suggestions that appear
+as you type.
+
+Requirements:
+- Neovim 0.9+
+- Ollama installed and running locally
+
+==============================================================================
+CONFIGURATION                                      *supertab-config*
+
+Configuration is done through the setup function:
+
+>
+    require("supertab.nvim").setup({
+      -- Enable/disable Ollama backend
+      ollama = {
+        enable = true,
+        host = "http://localhost:11434",
+        model = "codellama",
+      },
+      -- Keybindings
+      keymaps = {
+        accept_suggestion = "<Tab>",
+        clear_suggestion = "<C-]>",
+        accept_word = "<C-j>",
+      },
+      -- Ignore specific filetypes
+      ignore_filetypes = {},
+    })
+<
+
+==============================================================================
+COMMANDS                                           *supertab-commands*
+
+:SupertabStart          Start the completion service
+:SupertabStop           Stop the completion service
+:SupertabToggle         Toggle the completion service on/off
+:SupertabRestart        Restart the completion service
+:SupertabStatus         Show current status
+:SupertabShowLog        Show the log file
+:SupertabClearLog       Clear the log file
+:SupertabOllamaCheck    Check if Ollama is available
+
+==============================================================================
+KEYBINDINGS                                        *supertab-keybindings*
+
+<Tab>               Accept the current suggestion
+<C-]>               Clear the current suggestion
+<C-j>               Accept the next word of the suggestion
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
