@@ -13,7 +13,7 @@ require("lazy").setup({
     {
       "nhlmg93/supertab.nvim",
       config = function()
-        require("supertab.nvim").setup({})
+        require("supertab").setup({})
       end,
     },
 }, {})
@@ -25,7 +25,7 @@ require("lazy").setup({
 use {
   "nhlmg93/supertab.nvim",
   config = function()
-    require("supertab.nvim").setup({})
+    require("supertab").setup({})
   end,
 }
 ```
@@ -39,7 +39,7 @@ The `ignore_filetypes` table is used to ignore filetypes when using supertab.nvi
 `suggestion_color` and `cterm` options can be used to set the color of the suggestion text.
 
 ```lua
-require("supertab.nvim").setup({
+require("supertab").setup({
   keymaps = {
     accept_suggestion = "<Tab>",
     clear_suggestion = "<C-]>",
@@ -79,7 +79,7 @@ current filetype is in `ignore_filetypes`.
 You can disable supertab.nvim conditionally by setting `condition` function to return true.
 
 ```lua
-require("supertab.nvim").setup({
+require("supertab").setup({
   condition = function()
     return string.match(vim.fn.expand("%:t"), "foo.sh")
   end,
@@ -142,7 +142,7 @@ Alternatively, you can also check if there is an active suggestion and accept it
 For example:
 
 ```lua
-require("supertab.nvim").setup({
+require("supertab").setup({
   disable_keymaps = true
 })
 
@@ -150,7 +150,7 @@ require("supertab.nvim").setup({
 
 M.expand = function(fallback)
   local luasnip = require('luasnip')
-  local suggestion = require('supertab.nvim.completion_preview')
+  local suggestion = require('supertab.completion_preview')
 
   if luasnip.expandable() then
     luasnip.expand()
@@ -190,7 +190,7 @@ supertab.nvim provides the following commands:
 The `supertab.nvim.api` module provides the following functions for interacting with supertab.nvim from Lua:
 
 ```lua
-local api = require("supertab.nvim.api")
+local api = require("supertab.api")
 
 api.start() -- starts supertab.nvim
 api.stop() -- stops supertab.nvim

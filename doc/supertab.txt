@@ -24,7 +24,7 @@ CONFIGURATION                                      *supertab-config*
 Configuration is done through the setup function:
 
 >
-    require("supertab.nvim").setup({
+    require("supertab").setup({
       -- Enable/disable Ollama backend
       ollama = {
         enable = true,
