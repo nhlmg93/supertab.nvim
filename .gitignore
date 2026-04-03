@@ -1,0 +1,28 @@
+# Lua
+.luarc.json
+.lua-version
+lua_modules/
+
+# Neovim
+*.swp
+*.swo
+*~
+.session.vim
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.code-workspace
+
+# Testing/Build
+build/
+dist/
+*.log
+tmp/
+.temp/
+
+# OS
+Thumbs.db
