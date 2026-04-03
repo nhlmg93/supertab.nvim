@@ -11,7 +11,7 @@ Using a plugin manager, run the .setup({}) function in your Neovim configuration
 ```lua
 require("lazy").setup({
     {
-      "supermaven-inc/supertab.nvim",
+      "nhlmg93/supertab.nvim",
       config = function()
         require("supertab.nvim").setup({})
       end,
@@ -23,7 +23,7 @@ require("lazy").setup({
 
 ```lua
 use {
-  "supermaven-inc/supertab.nvim",
+  "nhlmg93/supertab.nvim",
   config = function()
     require("supertab.nvim").setup({})
   end,
