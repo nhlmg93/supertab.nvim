@@ -1,203 +1,232 @@
-# Supertab Neovim Plugin
+# supertab.nvim
 
-This plugin, supertab.nvim, provides AI-powered code completion using [Ollama](https://ollama.com). If you encounter any issues while using supertab.nvim, consider opening an issue or reaching out to us on [Discord](https://discord.com/invite/QQpqBmQH3w).
+AI-powered code completion for Neovim using [Ollama](https://ollama.com). Get intelligent, context-aware suggestions as you type.
+
+[![Neovim](https://img.shields.io/badge/Neovim-0.9+-green.svg)](https://neovim.io)
+[![Lua](https://img.shields.io/badge/Lua-blue.svg)](https://www.lua.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+## Features
+
+- 🤖 **Local AI completion** - Uses your local Ollama instance, no data leaves your machine
+- ⚡ **Streaming suggestions** - See completions appear character-by-character
+- 🎯 **Context-aware** - Understands your code context for relevant suggestions
+- 🔌 **nvim-cmp integration** - Works as a completion source for nvim-cmp
+- ⚙️ **Highly configurable** - Customizable keymaps, debounce, models, and more
+
+## Requirements
+
+- Neovim 0.9+
+- [Ollama](https://ollama.com) installed and running locally
+- Optional: [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) for completion menu support
 
 ## Installation
 
-Using a plugin manager, run the .setup({}) function in your Neovim configuration file.
-
-### Using [lazy.nvim](https://github.com/folke/lazy.nvim)
+### [lazy.nvim](https://github.com/folke/lazy.nvim)
 
 ```lua
-require("lazy").setup({
-    {
-      "nhlmg93/supertab.nvim",
-      config = function()
-        require("supertab").setup({})
-      end,
-    },
-}, {})
+{
+  "nhlmg93/supertab.nvim",
+  opts = {
+    -- your configuration
+  },
+}
 ```
 
-### Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
+Or with explicit setup:
+
+```lua
+{
+  "nhlmg93/supertab.nvim",
+  config = function()
+    require("supertab").setup({
+      ollama = {
+        model = "codellama",
+      },
+    })
+  end,
+}
+```
+
+### [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
 use {
   "nhlmg93/supertab.nvim",
   config = function()
-    require("supertab").setup({})
+    require("supertab").setup()
   end,
 }
 ```
 
-### Optional configuration
-
-By default, supertab.nvim will use the `<Tab>` and `<C-]>` keymaps to accept and clear suggestions. You can change these keymaps by passing a `keymaps` table to the .setup({}) function. Also in this table is `accept_word`, which allows partially accepting a completion, up to the end of the next word. By default this keymap is set to `<C-j>`.
-
-The `ignore_filetypes` table is used to ignore filetypes when using supertab.nvim. If a filetype is present as a key, and its value is `true`, supertab.nvim will not display suggestions for that filetype.
-
-`suggestion_color` and `cterm` options can be used to set the color of the suggestion text.
+## Configuration
 
 ```lua
 require("supertab").setup({
+  -- Keymaps (set to false to disable)
   keymaps = {
     accept_suggestion = "<Tab>",
     clear_suggestion = "<C-]>",
     accept_word = "<C-j>",
   },
-  ignore_filetypes = { cpp = true }, -- or { "cpp", }
-  color = {
-    suggestion_color = "#ffffff",
-    cterm = 244,
-  },
-  log_level = "info", -- set to "off" to disable logging completely
-  disable_inline_completion = false, -- disables inline completion for use with cmp
-  disable_keymaps = false, -- disables built in keymaps for more manual control
+
+  -- Disable for specific filetypes
+  ignore_filetypes = { "TelescopePrompt", "NvimTree" },
+
+  -- Disable inline ghost text
+  disable_inline_completion = false,
+
+  -- Disable all default keymaps (for manual configuration)
+  disable_keymaps = false,
+
+  -- Condition function to disable supertab
+  -- Return true to disable for current context
   condition = function()
     return false
-  end, -- condition to check for stopping supertab, `true` means to stop supertab when the condition is true.
-  ollama = {
-    enable = true, -- enable Ollama backend (default: true)
-    host = "http://localhost:11434", -- Ollama server host
-    model = "codellama", -- model to use for completion
-    temperature = 0.2, -- generation temperature
-    top_p = 0.9, -- nucleus sampling parameter
-    top_k = 40, -- top-k sampling parameter
-    max_tokens = 128, -- maximum tokens to generate
-    debounce_ms = 50, -- debounce delay in milliseconds
-    context_lines = 10, -- number of context lines to send
-    fim_enabled = true, -- enable fill-in-the-middle completion
-  }
-})
-```
-
-### Disabling supertab.nvim conditionally
-
-By default, supertab.nvim will always run unless `condition` function returns true or
-current filetype is in `ignore_filetypes`.
-
-You can disable supertab.nvim conditionally by setting `condition` function to return true.
-
-```lua
-require("supertab").setup({
-  condition = function()
-    return string.match(vim.fn.expand("%:t"), "foo.sh")
   end,
-})
-```
 
-This will disable supertab.nvim for files with the name `foo.sh` in it, e.g. `myscriptfoo.sh`.
+  -- Logging: "off", "trace", "debug", "info", "warn", "error"
+  log_level = "info",
 
-### Using with nvim-cmp
+  -- Suggestion color (optional)
+  color = {
+    suggestion_color = "#808080",
+    cterm = 244,
+  },
 
-If you are using nvim-cmp, you can use the `supertab` source (which is registered by default) by adding the following to your `cmp.setup()` function:
-
-```lua
--- cmp.lua
-cmp.setup {
-  ...
-  sources = {
-    { name = "supertab" },
-  }
-  ...
-}
-```
-
-It also has a builtin highlight group CmpItemKindSupertab. To add an icon to Supertab for lspkind, simply add Supertab to your lspkind symbol map.
-
-```lua
--- lspkind.lua
-local lspkind = require("lspkind")
-lspkind.init({
-  symbol_map = {
-    Supertab = "",
+  -- Ollama configuration
+  ollama = {
+    enable = true,
+    host = "http://localhost:11434",
+    model = "codellama",     -- or "llama2", "deepseek-coder", etc.
+    temperature = 0.2,       -- lower = more deterministic
+    max_tokens = 64,         -- max tokens to generate
+    debounce_ms = 50,        -- delay before triggering completion
+    context_lines = 10,      -- lines of context to send
+    fim_enabled = true,      -- fill-in-the-middle completion
   },
 })
-
-vim.api.nvim_set_hl(0, "CmpItemKindSupertab", {fg ="#6CC644"})
-```
-
-Alternatively, you can add Supertab to the lspkind symbol_map within the cmp format function.
-
-```lua
--- cmp.lua
-cmp.setup {
-  ...
-  formatting = {
-    format = lspkind.cmp_format({
-      mode = "symbol",
-      max_width = 50,
-      symbol_map = { Supertab = "" }
-    })
-  }
-  ...
-}
-```
-
-
-### Programmatically checking and accepting suggestions
-
-Alternatively, you can also check if there is an active suggestion and accept it programmatically.
-
-For example:
-
-```lua
-require("supertab").setup({
-  disable_keymaps = true
-})
-
-...
-
-M.expand = function(fallback)
-  local luasnip = require('luasnip')
-  local suggestion = require('supertab.completion_preview')
-
-  if luasnip.expandable() then
-    luasnip.expand()
-  elseif suggestion.has_suggestion() then
-    suggestion.on_accept_suggestion()
-  else
-    fallback()
-  end
-end
 ```
 
 ## Usage
 
-Upon starting supertab.nvim, it will connect to your local Ollama instance and provide AI-powered code completion.
+### Default Keymaps
 
-You can also use `:SupertabShowLog` to view the logged messages in `path/to/stdpath-cache/supertab.nvim.log` if you encounter any issues. Or `:SupertabClearLog` to clear the log file.
-
-Use `:SupertabOllamaCheck` to verify that your Ollama instance is available and accessible.
+| Key | Action |
+|-----|--------|
+| `<Tab>` | Accept full suggestion |
+| `<C-]>` | Clear suggestion |
+| `<C-j>` | Accept next word only |
 
 ### Commands
 
-supertab.nvim provides the following commands:
-
-```
-:SupertabStart          start supertab.nvim
-:SupertabStop           stop supertab.nvim
-:SupertabRestart        restart supertab.nvim
-:SupertabToggle         toggle supertab.nvim
-:SupertabStatus         show status of supertab.nvim
-:SupertabShowLog        show logs for supertab.nvim
-:SupertabClearLog       clear logs for supertab.nvim
-:SupertabOllamaCheck    check Ollama availability
+```vim
+:SupertabStart        " Start completion
+:SupertabStop         " Stop completion  
+:SupertabToggle       " Toggle on/off
+:SupertabRestart      " Restart service
+:SupertabStatus       " Show status
+:SupertabShowLog      " Open log file
+:SupertabClearLog     " Clear log file
+:SupertabOllamaCheck  " Check Ollama connection
 ```
 
 ### Lua API
 
-The `supertab.nvim.api` module provides the following functions for interacting with supertab.nvim from Lua:
-
 ```lua
 local api = require("supertab.api")
 
-api.start() -- starts supertab.nvim
-api.stop() -- stops supertab.nvim
-api.restart() -- restarts supertab.nvim if it is running, otherwise starts it
-api.toggle() -- toggles supertab.nvim
-api.is_running() -- returns true if supertab.nvim is running
-api.show_log() -- show logs for supertab.nvim
-api.clear_log() -- clear logs for supertab.nvim
-api.get_backend() -- returns the active backend ("ollama" or "none")
+api.start()           -- Start service
+api.stop()            -- Stop service
+api.restart()         -- Restart service
+api.toggle()          -- Toggle service
+api.is_running()      -- Check if running
+api.get_backend()     -- Get backend name
+
+-- Completion preview API
+local preview = require("supertab.completion_preview")
+preview.on_accept_suggestion()      -- Accept full
+preview.on_accept_suggestion_word() -- Accept word
+preview.on_dispose_inlay()          -- Clear
+preview.has_suggestion()            -- Check active
 ```
+
+## nvim-cmp Integration
+
+supertab registers itself as a cmp source automatically. To add it to your cmp sources:
+
+```lua
+cmp.setup({
+  sources = {
+    { name = "supertab" },
+    -- your other sources
+  },
+})
+```
+
+To add a kind icon with lspkind:
+
+```lua
+lspkind.init({
+  symbol_map = {
+    Supertab = "擄",
+  },
+})
+
+vim.api.nvim_set_hl(0, "CmpItemKindSupertab", { fg = "#6CC644" })
+```
+
+## Health Check
+
+Run `:checkhealth supertab` to verify:
+- Neovim version compatibility
+- Ollama connection status
+- Optional dependencies
+
+## Custom Keymaps
+
+Disable defaults and configure your own:
+
+```lua
+require("supertab").setup({
+  disable_keymaps = true,
+})
+
+local preview = require("supertab.completion_preview")
+
+-- Accept with Alt-Tab
+vim.keymap.set("i", "<M-Tab>", preview.on_accept_suggestion)
+
+-- Accept word with Alt-w  
+vim.keymap.set("i", "<M-w>", preview.on_accept_suggestion_word)
+
+-- Clear with Esc (you probably want to keep this one)
+vim.keymap.set("i", "<Esc>", function()
+  if preview.has_suggestion() then
+    preview.on_dispose_inlay()
+  else
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+  end
+end)
+```
+
+## Troubleshooting
+
+**No suggestions appearing:**
+1. Check Ollama is running: `:SupertabOllamaCheck`
+2. Check logs: `:SupertabShowLog`
+3. Run health check: `:checkhealth supertab`
+
+**Slow suggestions:**
+- Increase `debounce_ms` (default 50ms)
+- Decrease `max_tokens` for faster generation
+- Check your Ollama model isn't too large for your hardware
+
+**Wrong completions:**
+- Increase `context_lines` for more context
+- Try a different model (e.g., `deepseek-coder` for code)
+- Adjust `temperature` (lower = more deterministic)
+
+## License
+
+MIT

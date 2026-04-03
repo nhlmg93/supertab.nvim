@@ -5,6 +5,7 @@ local config = require("supertab.config")
 
 local M = {}
 
+---@return boolean
 M.is_running = function()
   if config.ollama and config.ollama.enable then
     return ollama.is_active
@@ -21,14 +22,11 @@ M.start = function()
   if M.is_running() then
     log:warn("Supertab is already running (Ollama backend).")
     return
-  else
-    log:trace("Starting Supertab (Ollama)...")
   end
 
+  log:trace("Starting Supertab (Ollama)...")
   vim.g.SUPERTAB_DISABLED = 0
-
   ollama:start()
-
   listener.setup()
 end
 
@@ -38,12 +36,10 @@ M.stop = function()
   if not M.is_running() then
     log:warn("Supertab is not running.")
     return
-  else
-    log:trace("Stopping Supertab...")
   end
 
+  log:trace("Stopping Supertab...")
   listener.teardown()
-
   ollama:stop()
 end
 
@@ -66,7 +62,7 @@ M.show_log = function()
   local log_path = log:get_log_path()
   if log_path ~= nil then
     vim.cmd.tabnew()
-    vim.cmd(string.format(":e %s", log_path))
+    vim.cmd.edit(vim.fn.fnameescape(log_path))
   else
     log:warn("No log file found to show!")
   end
@@ -75,12 +71,18 @@ end
 M.clear_log = function()
   local log_path = log:get_log_path()
   if log_path ~= nil then
-    vim.uv.fs_unlink(log_path)
+    local ok, err = pcall(function()
+      vim.uv.fs_unlink(log_path)
+    end)
+    if not ok then
+      log:error("Failed to clear log: " .. tostring(err))
+    end
   else
     log:warn("No log file found to remove!")
   end
 end
 
+---@return "ollama" | "none"
 M.get_backend = function()
   if config.ollama and config.ollama.enable then
     return "ollama"

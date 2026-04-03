@@ -1,17 +1,16 @@
---- HTTP client for Ollama API using vim.uv (streaming only)
--- @module supertab.ollama.client
-
 local log = require("supertab.logger")
 local config = require("supertab.config")
 
 local M = {}
 
+---@type {prefix: string, suffix: string, on_token: function, on_done: function, cancel: function}|nil
 M.current_request = nil
+
+---@type table|nil
 M.pending_request = nil
 
---- Parse host config into ip, port, path components
--- @param endpoint string Full URL like http://127.0.0.1:11434/api/generate
--- @return string ip, number port, string path, string host_port
+---@param endpoint string
+---@return string ip, integer port, string path, string host_port
 local function parse_url(endpoint)
   local stripped = endpoint:gsub("^https?://", "")
   local slash = stripped:find("/")
@@ -27,33 +26,28 @@ local function parse_url(endpoint)
   local ip, port
   if colon then
     ip = host_port:sub(1, colon - 1)
-    port = tonumber(host_port:sub(colon + 1))
+    port = tonumber(host_port:sub(colon + 1)) or 11434
   else
     ip = host_port
     port = 11434
   end
-  return ip, port or 11434, path, host_port
+  return ip, port, path, host_port
 end
 
---- Get the Ollama base URL
--- @return string
+---@return string
 local function get_base_url()
-  local ollama_config = config.ollama or {}
+  local ollama_config = config.ollama
   return ollama_config.host or "http://127.0.0.1:11434"
 end
 
---- Make a streaming HTTP request over TCP using vim.uv
--- Parses newline-delimited JSON as it arrives from Ollama's streaming API.
--- Also handles non-streaming responses (single JSON body) for endpoints like /api/tags.
--- @param method string HTTP method
--- @param url string Full URL
--- @param body string|nil Request body (for POST)
--- @param on_token fun(token: string, accumulated: string)|nil Called for each streaming token (nil for non-streaming)
--- @param on_done fun(err: string|nil, full_text: string) Called when complete
--- @return function Cancel function
+---@param method string
+---@param url string
+---@param body string|nil
+---@param on_token function|nil
+---@param on_done fun(err: string|nil, full_text: string)
+---@return function
 local function http_request(method, url, body, on_token, on_done)
   local ip, port, path, host_port = parse_url(url)
-
   local tcp = vim.uv.new_tcp()
   local cancelled = false
   local accumulated = ""
@@ -63,8 +57,11 @@ local function http_request(method, url, body, on_token, on_done)
   local is_chunked = false
   local chunk_buffer = ""
 
+  ---@param err string|nil
   local function finish(err)
-    if cancelled then return end
+    if cancelled then
+      return
+    end
     cancelled = true
     if tcp and not tcp:is_closing() then
       tcp:close()
@@ -74,11 +71,16 @@ local function http_request(method, url, body, on_token, on_done)
     end)
   end
 
+  ---@param trimmed string
   local function process_json_object(trimmed)
-    if cancelled then return end
+    if cancelled then
+      return
+    end
 
     local ok, data = pcall(vim.json.decode, trimmed)
-    if not ok or type(data) ~= "table" then return end
+    if not ok or type(data) ~= "table" then
+      return
+    end
 
     if data.error then
       finish("Ollama error: " .. data.error)
@@ -86,7 +88,6 @@ local function http_request(method, url, body, on_token, on_done)
     end
 
     local token = data.response or ""
-
     if #token > 0 then
       accumulated = accumulated .. token
       if on_token then
@@ -106,7 +107,9 @@ local function http_request(method, url, body, on_token, on_done)
   local function process_body_lines()
     while true do
       local nl = body_buffer:find("\n")
-      if not nl then break end
+      if not nl then
+        break
+      end
       local line = body_buffer:sub(1, nl - 1)
       body_buffer = body_buffer:sub(nl + 1)
       local trimmed = line:match("^%s*(.-)%s*$")
@@ -119,23 +122,30 @@ local function http_request(method, url, body, on_token, on_done)
   local function drain_chunks()
     while true do
       local crlf = chunk_buffer:find("\r\n")
-      if not crlf then return end
+      if not crlf then
+        return
+      end
       local size_str = chunk_buffer:sub(1, crlf - 1)
       local chunk_size = tonumber(size_str, 16)
-      if not chunk_size then return end
+      if not chunk_size then
+        return
+      end
       if chunk_size == 0 then
         finish(nil)
         return
       end
       local chunk_start = crlf + 2
       local chunk_end = chunk_start + chunk_size - 1
-      if #chunk_buffer < chunk_end + 2 then return end
+      if #chunk_buffer < chunk_end + 2 then
+        return
+      end
       local chunk_data = chunk_buffer:sub(chunk_start, chunk_end)
       chunk_buffer = chunk_buffer:sub(chunk_end + 3)
       body_buffer = body_buffer .. chunk_data
     end
   end
 
+  ---@param raw_data string
   local function handle_body_data(raw_data)
     if is_chunked then
       chunk_buffer = chunk_buffer .. raw_data
@@ -178,7 +188,6 @@ local function http_request(method, url, body, on_token, on_done)
         if not data then
           tcp:read_stop()
           if not cancelled then
-            -- For non-streaming responses, accumulated may be empty — pass body_buffer
             if #accumulated == 0 and #body_buffer > 0 then
               accumulated = body_buffer
             end
@@ -222,12 +231,11 @@ local function http_request(method, url, body, on_token, on_done)
   end
 end
 
---- Build the request body for Ollama
--- @param prefix string Text before cursor
--- @param suffix string Text after cursor
--- @return table
+---@param prefix string
+---@param suffix string
+---@return table
 function M.build_request_body(prefix, suffix)
-  local ollama_config = config.ollama or {}
+  local ollama_config = config.ollama
   return {
     model = ollama_config.model or "codellama",
     stream = true,
@@ -243,12 +251,11 @@ function M.build_request_body(prefix, suffix)
   }
 end
 
---- Make streaming completion request to Ollama
--- @param prefix string Text before cursor
--- @param suffix string Text after cursor
--- @param on_token fun(token: string, accumulated: string) Called per token
--- @param on_done fun(completion: string) Called when complete
--- @return function Cancel function
+---@param prefix string
+---@param suffix string
+---@param on_token fun(token: string, accumulated: string)
+---@param on_done fun(completion: string)
+---@return function
 function M.make_request(prefix, suffix, on_token, on_done)
   local url = get_base_url() .. "/api/generate"
   local body = M.build_request_body(prefix, suffix)
@@ -267,12 +274,11 @@ function M.make_request(prefix, suffix, on_token, on_done)
   end)
 end
 
---- Queue a streaming request, cancelling any previous one
--- @param prefix string Text before cursor
--- @param suffix string Text after cursor
--- @param on_token fun(token: string, accumulated: string) Called per token
--- @param on_done fun(completion: string) Called when complete
--- @return function Cancel function
+---@param prefix string
+---@param suffix string
+---@param on_token fun(token: string, accumulated: string)
+---@param on_done fun(completion: string)
+---@return function
 function M.queue_request(prefix, suffix, on_token, on_done)
   if M.pending_request and M.pending_request.cancel then
     M.pending_request.cancel()
@@ -285,14 +291,23 @@ function M.queue_request(prefix, suffix, on_token, on_done)
       suffix = suffix,
       on_token = on_token,
       on_done = on_done,
-      cancel = function() M.pending_request = nil end,
+      cancel = function()
+        M.pending_request = nil
+      end,
     }
     return function()
-      if M.pending_request then M.pending_request = nil end
+      if M.pending_request then
+        M.pending_request = nil
+      end
     end
   end
 
-  M.current_request = { prefix = prefix, suffix = suffix, on_token = on_token, on_done = on_done }
+  M.current_request = {
+    prefix = prefix,
+    suffix = suffix,
+    on_token = on_token,
+    on_done = on_done,
+  }
 
   local cancel_fn = M.make_request(prefix, suffix, on_token, function(completion)
     local has_pending = M.pending_request ~= nil
@@ -313,21 +328,23 @@ function M.queue_request(prefix, suffix, on_token, on_done)
       M.current_request.cancel()
       M.current_request = nil
     end
-    if M.pending_request then M.pending_request = nil end
+    if M.pending_request then
+      M.pending_request = nil
+    end
   end
 end
 
---- Cancel all pending requests
 function M.cancel_all()
   if M.current_request and M.current_request.cancel then
     M.current_request.cancel()
     M.current_request = nil
   end
-  if M.pending_request then M.pending_request = nil end
+  if M.pending_request then
+    M.pending_request = nil
+  end
 end
 
---- Check if Ollama is available
--- @param callback fun(available: boolean, version: string|nil)
+---@param callback fun(available: boolean, version: string|nil)
 function M.check_availability(callback)
   local url = get_base_url() .. "/api/tags"
   log:debug("Checking Ollama at " .. url)

@@ -1,16 +1,23 @@
 local CompletionPreview = require("supertab.completion_preview")
-local u = require("supertab.util")
+local util = require("supertab.util")
 
-local loop = u.uv
+local loop = util.uv
 
-local source = { executions = {} }
+---@class SupertabCmpSource
+---@field client any
+---@field timer userdata
+---@field executions table
+local source = {
+  executions = {},
+}
 
-local label_text = function(text)
-  local shorten = function(str)
-    local short_prefix = string.sub(str, 0, 20)
+---@param text string
+---@return string
+local function label_text(text)
+  local function shorten(str)
+    local short_prefix = string.sub(str, 1, 20)
     local short_suffix = string.sub(str, string.len(str) - 15, string.len(str))
-    local delimiter = " ... "
-    return short_prefix .. delimiter .. short_suffix
+    return short_prefix .. " ... " .. short_suffix
   end
 
   text = text:gsub("^%s*", "")
@@ -29,21 +36,25 @@ function source.is_available()
   return true
 end
 
-function source.resolve(self, completion_item, callback)
+---@param completion_item table
+---@param callback function
+function source:resolve(completion_item, callback)
   for _, fn in ipairs(self.executions) do
     completion_item = fn(completion_item)
   end
-
   callback(completion_item)
 end
 
-function source.execute(self, completion_item, callback)
+---@param completion_item table
+---@param callback function
+function source:execute(completion_item, callback)
   CompletionPreview:dispose_inlay()
-
   callback(completion_item)
 end
 
-function source.complete(self, params, callback)
+---@param params table
+---@param callback function
+function source:complete(params, callback)
   local inlay_instance = CompletionPreview:get_inlay_instance()
 
   if inlay_instance == nil or inlay_instance.is_active == false then
@@ -58,12 +69,10 @@ function source.complete(self, params, callback)
   local cursor = context.cursor
 
   local completion_text = inlay_instance.line_before_cursor .. inlay_instance.completion_text
-  local preview_text = completion_text
   local split = vim.split(completion_text, "\n", { plain = true })
   local label = label_text(split[1])
 
   local insertTextFormat = 1 -- cmp.lsp.InsertTextFormat.PlainText
-
   if #split > 1 then
     insertTextFormat = 2 -- cmp.lsp.InsertTextFormat.Snippet
   end
@@ -75,7 +84,7 @@ function source.complete(self, params, callback)
     },
     ["end"] = {
       line = cursor.line,
-      character = vim.fn.col("$"),
+      character = vim.fn.col("$") - 1,
     },
   }
 
@@ -97,24 +106,28 @@ function source.complete(self, params, callback)
       },
       documentation = {
         kind = "markdown",
-        value = "```" .. vim.bo.filetype .. "\n" .. preview_text .. "\n```",
+        value = "```" .. vim.bo.filetype .. "\n" .. completion_text .. "\n```",
       },
       dup = 0,
     },
   }
 
-  return callback({
+  callback({
     isIncomplete = false,
     items = items,
   })
 end
 
+---@param client? any
+---@param opts? table
+---@return SupertabCmpSource
 function source.new(client, opts)
   local self = setmetatable({
     timer = loop.new_timer(),
+    client = client,
+    opts = opts,
+    executions = {},
   }, { __index = source })
-
-  self.client = client
 
   return self
 end

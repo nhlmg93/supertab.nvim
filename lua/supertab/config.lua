@@ -1,3 +1,38 @@
+local M = {}
+
+---@class SupertabConfig
+---@field keymaps? SupertabKeymaps
+---@field ignore_filetypes? table<string, boolean>
+---@field disable_inline_completion? boolean
+---@field disable_keymaps? boolean
+---@field condition? fun(): boolean
+---@field log_level? "off" | "trace" | "debug" | "info" | "warn" | "error"
+---@field color? SupertabColorConfig
+---@field ollama? SupertabOllamaConfig
+
+---@class SupertabKeymaps
+---@field accept_suggestion? string
+---@field clear_suggestion? string
+---@field accept_word? string
+
+---@class SupertabColorConfig
+---@field suggestion_color? string
+---@field cterm? number
+
+---@class SupertabOllamaConfig
+---@field enable? boolean
+---@field host? string
+---@field model? string
+---@field fim_enabled? boolean
+---@field temperature? number
+---@field top_p? number
+---@field top_k? number
+---@field max_tokens? number
+---@field stop_tokens? string[]
+---@field debounce_ms? number
+---@field context_lines? number
+
+---@type SupertabConfig
 local default_config = {
   keymaps = {
     accept_suggestion = "<Tab>",
@@ -7,36 +42,46 @@ local default_config = {
   ignore_filetypes = {},
   disable_inline_completion = false,
   disable_keymaps = false,
+  ---@type fun(): boolean
   condition = function()
     return false
   end,
   log_level = "info",
-  -- Ollama configuration
+  color = nil,
   ollama = {
     enable = true,
     host = "http://localhost:11434",
     model = "codellama",
-    -- FIM (Fill-in-the-Middle) prompt support
     fim_enabled = true,
-    -- Generation parameters
     temperature = 0.2,
     top_p = 0.9,
     top_k = 40,
     max_tokens = 64,
     stop_tokens = {},
-    -- Debounce settings (milliseconds)
     debounce_ms = 50,
-    -- Context lines for completion
     context_lines = 10,
   },
 }
 
-local M = {
-  config = vim.deepcopy(default_config),
-}
+---@type SupertabConfig
+M.config = vim.deepcopy(default_config)
 
-M.setup = function(args)
-  M.config = vim.tbl_deep_extend("force", vim.deepcopy(default_config), args)
+---@param opts? SupertabConfig
+M.setup = function(opts)
+  opts = opts or {}
+  M.config = vim.tbl_deep_extend("force", vim.deepcopy(default_config), opts)
+end
+
+---@param key string
+---@return any
+local function get_config_value(key)
+  return M.config[key]
+end
+
+---@param key string
+---@param value any
+local function set_config_value(key, value)
+  M.config[key] = value
 end
 
 return setmetatable(M, {
@@ -44,9 +89,9 @@ return setmetatable(M, {
     if key == "setup" then
       return M.setup
     end
-    return rawget(M.config, key)
+    return get_config_value(key)
   end,
   __newindex = function(_, key, value)
-    M.config[key] = value
+    set_config_value(key, value)
   end,
 })

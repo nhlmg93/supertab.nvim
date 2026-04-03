@@ -3,63 +3,161 @@
 CONTENTS                                           *supertab*
 
 Introduction                                        |supertab-intro|
-Configuration                                      |supertab-config|
-Commands                                           |supertab-commands|
-Keybindings                                        |supertab-keybindings|
+Requirements                                      |supertab-requirements|
+Installation                                      |supertab-installation|
+Configuration                                     |supertab-config|
+Commands                                          |supertab-commands|
+Keybindings                                       |supertab-keybindings|
+API                                               |supertab-api|
+Health                                            |supertab-health|
 
-==============================================================================
+===============================================================================
 INTRODUCTION                                        *supertab-intro*
 
 Supertab is a Neovim plugin that provides intelligent code completion using
 Ollama as the backend. It offers inline completion suggestions that appear
-as you type.
+as you type, similar to GitHub Copilot but using your local Ollama instance.
 
-Requirements:
+===============================================================================
+REQUIREMENTS                                      *supertab-requirements*
+
 - Neovim 0.9+
-- Ollama installed and running locally
+- Ollama installed and running locally (https://ollama.com)
+- Optional: nvim-cmp for completion menu integration
 
-==============================================================================
-CONFIGURATION                                      *supertab-config*
+===============================================================================
+INSTALLATION                                      *supertab-installation*
 
-Configuration is done through the setup function:
+Using lazy.nvim: >
 
->
+    {
+      "nhlmg93/supertab.nvim",
+      opts = {},
+    }
+<
+
+Using packer.nvim: >
+
+    use {
+      "nhlmg93/supertab.nvim",
+      config = function()
+        require("supertab").setup()
+      end,
+    }
+
+===============================================================================
+CONFIGURATION                                     *supertab-config*
+
+Configure via the setup function: >
+
     require("supertab").setup({
-      -- Enable/disable Ollama backend
-      ollama = {
-        enable = true,
-        host = "http://localhost:11434",
-        model = "codellama",
-      },
-      -- Keybindings
       keymaps = {
         accept_suggestion = "<Tab>",
         clear_suggestion = "<C-]>",
         accept_word = "<C-j>",
       },
-      -- Ignore specific filetypes
-      ignore_filetypes = {},
+      ignore_filetypes = { "TelescopePrompt" },
+      disable_inline_completion = false,
+      disable_keymaps = false,
+      condition = function()
+        return false
+      end,
+      log_level = "info",
+      color = {
+        suggestion_color = "#808080",
+        cterm = 244,
+      },
+      ollama = {
+        enable = true,
+        host = "http://localhost:11434",
+        model = "codellama",
+        temperature = 0.2,
+        max_tokens = 64,
+        debounce_ms = 50,
+        context_lines = 10,
+      },
     })
 <
 
-==============================================================================
-COMMANDS                                           *supertab-commands*
+Configuration Options: ~
 
-:SupertabStart          Start the completion service
-:SupertabStop           Stop the completion service
-:SupertabToggle         Toggle the completion service on/off
-:SupertabRestart        Restart the completion service
-:SupertabStatus         Show current status
-:SupertabShowLog        Show the log file
-:SupertabClearLog       Clear the log file
-:SupertabOllamaCheck    Check if Ollama is available
+    keymaps                     Keymap configuration table
+      accept_suggestion         Accept full suggestion (default: "<Tab>")
+      clear_suggestion          Clear suggestion (default: "<C-]>")
+      accept_word               Accept next word only (default: "<C-j>")
 
-==============================================================================
-KEYBINDINGS                                        *supertab-keybindings*
+    ignore_filetypes            Table of filetypes to disable (default: {})
+    disable_inline_completion   Disable inline previews (default: false)
+    disable_keymaps             Disable default keymaps (default: false)
+    condition                   Function returning true to disable (default: returns false)
+    log_level                   Log level: "off", "trace", "debug", "info", "warn", "error"
+    color                       Color configuration table
+    ollama                      Ollama backend configuration
 
-<Tab>               Accept the current suggestion
-<C-]>               Clear the current suggestion
-<C-j>               Accept the next word of the suggestion
+===============================================================================
+COMMANDS                                          *supertab-commands*
 
-==============================================================================
+:SupertabStart              Start the completion service
+:SupertabStop               Stop the completion service
+:SupertabToggle             Toggle the completion service on/off
+:SupertabRestart            Restart the completion service
+:SupertabStatus             Show current status
+:SupertabShowLog            Show the log file in a new tab
+:SupertabClearLog           Clear the log file
+:SupertabOllamaCheck        Check if Ollama is available
+
+===============================================================================
+KEYBINDINGS                                       *supertab-keybindings*
+
+Default keymaps (customizable via config): >
+
+    <Tab>               Accept the current suggestion
+    <C-]>               Clear the current suggestion
+    <C-j>               Accept the next word of the suggestion
+
+To use with custom keymaps: >
+
+    require("supertab").setup({
+      disable_keymaps = true,
+    })
+
+    -- Then define your own:
+    vim.keymap.set("i", "<M-Tab>", function()
+      require("supertab.completion_preview").on_accept_suggestion()
+    end)
+
+===============================================================================
+API                                               *supertab-api*
+
+Lua API functions: >
+
+    local api = require("supertab.api")
+
+    api.start()           -- Start supertab
+    api.stop()            -- Stop supertab
+    api.restart()         -- Restart supertab
+    api.toggle()          -- Toggle supertab
+    api.is_running()      -- Check if running
+    api.show_log()        -- Show log file
+    api.clear_log()       -- Clear log file
+    api.get_backend()     -- Get backend name ("ollama" or "none")
+
+Completion preview API: >
+
+    local preview = require("supertab.completion_preview")
+
+    preview.on_accept_suggestion()      -- Accept full suggestion
+    preview.on_accept_suggestion_word() -- Accept next word
+    preview.on_dispose_inlay()          -- Clear suggestion
+    preview.has_suggestion()            -- Check if suggestion active
+
+===============================================================================
+HEALTH                                            *supertab-health*
+
+Run :checkhealth supertab to verify:
+- Neovim version compatibility
+- Ollama connection status
+- Optional dependencies (nvim-cmp)
+
+===============================================================================
 vim:tw=78:ts=8:ft=help:norl:
