@@ -1,7 +1,6 @@
 local ollama = require("supertab.ollama")
 local preview = require("supertab.completion_preview")
 local config = require("supertab.config")
-local api = require("supertab.api")
 
 local M = {}
 
@@ -32,6 +31,10 @@ end
 
 ---@param _event table
 local function on_buf_enter(_event)
+  -- Lazy require to avoid circular dependency:
+  -- init -> commands -> api -> document_listener -> api
+  local api = require("supertab.api")
+
   if config.condition() or vim.g.SUPERTAB_DISABLED == 1 then
     if api.is_running() then
       api.stop()
