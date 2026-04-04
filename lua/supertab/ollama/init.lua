@@ -254,12 +254,8 @@ function OllamaLifecycle:handle_completion(completion, prefix, line_before_curso
     return
   end
 
+  -- Check if text after cursor appears in completion, limit to that point
   local completion_end = #processed_completion
-  local first_newline = string.find(processed_completion, "\n")
-  if first_newline then
-    completion_end = first_newline - 1
-  end
-
   if #line_after_cursor > 0 then
     local match_pos = string.find(processed_completion, line_after_cursor, 1, true)
     if match_pos then
@@ -288,13 +284,21 @@ function OllamaLifecycle:render_completion(completion_text, prior_delete, line_b
   end
 
   local is_floating = util.is_floating_completion(completion_text, line_after_cursor)
+  local max_lines = config.ollama.max_lines
 
   if is_floating then
     local first_newline = string.find(completion_text, "\n")
     local inline_text = first_newline and string.sub(completion_text, 1, first_newline - 1) or completion_text
-    preview:render_with_inlay(self.buffer, prior_delete, inline_text, line_after_cursor, line_before_cursor)
+    preview:render_with_inlay(self.buffer, prior_delete, inline_text, line_after_cursor, line_before_cursor, max_lines)
   else
-    preview:render_with_inlay(self.buffer, prior_delete, completion_text, line_after_cursor, line_before_cursor)
+    preview:render_with_inlay(
+      self.buffer,
+      prior_delete,
+      completion_text,
+      line_after_cursor,
+      line_before_cursor,
+      max_lines
+    )
   end
 end
 
