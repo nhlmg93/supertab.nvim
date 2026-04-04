@@ -100,9 +100,10 @@ require("supertab").setup({
     host = "http://localhost:11434",
     model = "codellama",     -- or "llama2", "deepseek-coder", etc.
     temperature = 0.2,       -- lower = more deterministic
-    max_tokens = 64,         -- max tokens to generate
+    max_tokens = 256,        -- max tokens to generate
     debounce_ms = 50,        -- delay before triggering completion
     context_lines = 10,      -- lines of context to send
+    max_lines = 10,          -- max ghost text lines to display
   },
 })
 ```

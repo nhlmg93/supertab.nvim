@@ -210,7 +210,12 @@ function CompletionPreview.on_accept_suggestion(is_partial)
 
     local lines = util.line_count(completion_text)
     local last_line = util.get_last_line(completion_text)
-    local new_cursor_pos = { cursor[1] + lines, cursor[2] + #last_line + 1 }
+    local new_cursor_pos
+    if lines > 0 then
+      new_cursor_pos = { cursor[1] + lines, #last_line }
+    else
+      new_cursor_pos = { cursor[1], cursor[2] + #last_line }
+    end
     vim.api.nvim_win_set_cursor(0, new_cursor_pos)
   else
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", true)
