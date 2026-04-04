@@ -23,12 +23,10 @@ local M = {}
 ---@field enable? boolean
 ---@field host? string
 ---@field model? string
----@field fim_enabled? boolean
 ---@field temperature? number
 ---@field top_p? number
 ---@field top_k? number
 ---@field max_tokens? number
----@field stop_tokens? string[]
 ---@field debounce_ms? number
 ---@field context_lines? number
 
@@ -46,18 +44,16 @@ local default_config = {
   condition = function()
     return false
   end,
-  log_level = "info",
+  log_level = "warn",
   color = nil,
   ollama = {
     enable = true,
     host = "http://localhost:11434",
     model = "codellama",
-    fim_enabled = true,
     temperature = 0.2,
     top_p = 0.9,
     top_k = 40,
     max_tokens = 64,
-    stop_tokens = {},
     debounce_ms = 50,
     context_lines = 10,
   },

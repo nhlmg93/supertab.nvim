@@ -118,14 +118,10 @@ function source:complete(params, callback)
   })
 end
 
----@param client? any
----@param opts? table
 ---@return SupertabCmpSource
-function source.new(client, opts)
+function source.new()
   local self = setmetatable({
     timer = loop.new_timer(),
-    client = client,
-    opts = opts,
     executions = {},
   }, { __index = source })
 

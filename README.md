@@ -103,7 +103,6 @@ require("supertab").setup({
     max_tokens = 64,         -- max tokens to generate
     debounce_ms = 50,        -- delay before triggering completion
     context_lines = 10,      -- lines of context to send
-    fim_enabled = true,      -- fill-in-the-middle completion
   },
 })
 ```

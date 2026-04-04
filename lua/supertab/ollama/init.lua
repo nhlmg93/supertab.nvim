@@ -71,7 +71,9 @@ function OllamaLifecycle:check_ollama()
         log:debug("Ollama is available" .. (version and " (version: " .. version .. ")" or ""))
       else
         self.is_active = false
-        log:error("Ollama check failed - server may be down or unreachable at " .. (config.ollama.host or "default host"))
+        log:error(
+          "Ollama check failed - server may be down or unreachable at " .. (config.ollama.host or "default host")
+        )
       end
     end)
   end)
@@ -208,30 +210,25 @@ function OllamaLifecycle:provide_completion(buffer, cursor, context)
   local suffix = util.get_cursor_suffix(buffer, cursor) or ""
   self:cancel_request()
 
-  self.cancel_fn = client.queue_request(
-    prefix,
-    suffix,
-    function(_token, accumulated)
-      if current_request_id ~= self.request_id then
-        return
-      end
-      if not accumulated or #accumulated == 0 then
-        return
-      end
-      local clean = accumulated:gsub("^%s*```[a-zA-Z]*%s*\n", ""):gsub("\n%s*```%s*$", "")
-      self:handle_completion(clean, prefix, line_before_cursor, line_after_cursor)
-    end,
-    function(completion)
-      if current_request_id ~= self.request_id then
-        return
-      end
-      if not completion or #completion == 0 then
-        preview:dispose_inlay()
-        return
-      end
-      self:handle_completion(completion, prefix, line_before_cursor, line_after_cursor)
+  self.cancel_fn = client.queue_request(prefix, suffix, function(_token, accumulated)
+    if current_request_id ~= self.request_id then
+      return
     end
-  )
+    if not accumulated or #accumulated == 0 then
+      return
+    end
+    local clean = accumulated:gsub("^%s*```[a-zA-Z]*%s*\n", ""):gsub("\n%s*```%s*$", "")
+    self:handle_completion(clean, prefix, line_before_cursor, line_after_cursor)
+  end, function(completion)
+    if current_request_id ~= self.request_id then
+      return
+    end
+    if not completion or #completion == 0 then
+      preview:dispose_inlay()
+      return
+    end
+    self:handle_completion(completion, prefix, line_before_cursor, line_after_cursor)
+  end)
 end
 
 ---@param completion string
@@ -270,11 +267,6 @@ function OllamaLifecycle:handle_completion(completion, prefix, line_before_curso
     end
   end
 
-  local is_floating = false
-  if #line_after_cursor > 0 and string.sub(processed_completion, 1, #line_after_cursor) ~= line_after_cursor then
-    is_floating = true
-  end
-
   local final_completion = string.sub(processed_completion, 1, completion_end)
 
   if not final_completion or #final_completion == 0 then
@@ -295,10 +287,7 @@ function OllamaLifecycle:render_completion(completion_text, prior_delete, line_b
     return
   end
 
-  local is_floating = false
-  if #line_after_cursor > 0 and string.sub(completion_text, 1, #line_after_cursor) ~= line_after_cursor then
-    is_floating = true
-  end
+  local is_floating = util.is_floating_completion(completion_text, line_after_cursor)
 
   if is_floating then
     local first_newline = string.find(completion_text, "\n")
@@ -306,21 +295,6 @@ function OllamaLifecycle:render_completion(completion_text, prior_delete, line_b
     preview:render_with_inlay(self.buffer, prior_delete, inline_text, line_after_cursor, line_before_cursor)
   else
     preview:render_with_inlay(self.buffer, prior_delete, completion_text, line_after_cursor, line_before_cursor)
-  end
-end
-
-function OllamaLifecycle:init()
-  if self.debounce_timer then
-    self.debounce_timer:close()
-  end
-  self.debounce_timer = loop.new_timer()
-end
-
-function OllamaLifecycle:cleanup()
-  self:cancel_request()
-  if self.debounce_timer then
-    self.debounce_timer:close()
-    self.debounce_timer = nil
   end
 end
 

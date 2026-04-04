@@ -6,9 +6,6 @@ local api = require("supertab.api")
 
 local M = {}
 
----@type integer|nil
-local keymap_bufnr = nil
-
 ---@param min_version string
 ---@return boolean
 local function check_version(min_version)
@@ -17,21 +14,7 @@ local function check_version(min_version)
   if not min then
     return false
   end
-  return nvim_version.major > min.major
-    or (nvim_version.major == min.major and nvim_version.minor >= min.minor)
-end
-
----@param bufnr integer
----@param key string
----@param func function
----@param desc string
-local function set_buffer_keymap(bufnr, key, func, desc)
-  vim.keymap.set("i", key, func, {
-    noremap = true,
-    silent = true,
-    buffer = bufnr,
-    desc = desc,
-  })
+  return nvim_version.major > min.major or (nvim_version.major == min.major and nvim_version.minor >= min.minor)
 end
 
 ---@param opts? SupertabConfig

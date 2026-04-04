@@ -26,7 +26,13 @@ local CompletionPreview = {
 ---@param completion_text string
 ---@param line_after_cursor string
 ---@param line_before_cursor string
-function CompletionPreview:render_with_inlay(buffer, prior_delete, completion_text, line_after_cursor, line_before_cursor)
+function CompletionPreview:render_with_inlay(
+  buffer,
+  prior_delete,
+  completion_text,
+  line_after_cursor,
+  line_before_cursor
+)
   self:dispose_inlay()
 
   if not buffer then
@@ -47,7 +53,7 @@ function CompletionPreview:render_with_inlay(buffer, prior_delete, completion_te
   local processed_text = util.first_line_split(completion_text, self.suggestion_group)
   local first_line = processed_text.first_line
 
-  local is_floating = (#line_after_cursor > 0) and (not util.contains(first_line, line_after_cursor))
+  local is_floating = (#line_after_cursor > 0) and not util.contains(first_line, line_after_cursor)
 
   if is_floating then
     self:render_floating(first_line, opts, buf, line_before_cursor)
@@ -183,7 +189,11 @@ function CompletionPreview.on_accept_suggestion(is_partial)
     }
 
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Space><Left><Del>", true, false, true), "n", false)
-    vim.lsp.util.apply_text_edits({ { range = range, newText = completion_text } }, vim.api.nvim_get_current_buf(), "utf-8")
+    vim.lsp.util.apply_text_edits(
+      { { range = range, newText = completion_text } },
+      vim.api.nvim_get_current_buf(),
+      "utf-8"
+    )
 
     local lines = util.line_count(completion_text)
     local last_line = util.get_last_line(completion_text)
