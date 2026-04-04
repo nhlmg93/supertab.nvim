@@ -284,21 +284,13 @@ function OllamaLifecycle:render_completion(completion_text, prior_delete, line_b
   end
 
   local is_floating = util.is_floating_completion(completion_text, line_after_cursor)
-  local max_lines = config.ollama.max_lines
 
   if is_floating then
     local first_newline = string.find(completion_text, "\n")
     local inline_text = first_newline and string.sub(completion_text, 1, first_newline - 1) or completion_text
-    preview:render_with_inlay(self.buffer, prior_delete, inline_text, line_after_cursor, line_before_cursor, max_lines)
+    preview:render_with_inlay(self.buffer, prior_delete, inline_text, line_after_cursor, line_before_cursor)
   else
-    preview:render_with_inlay(
-      self.buffer,
-      prior_delete,
-      completion_text,
-      line_after_cursor,
-      line_before_cursor,
-      max_lines
-    )
+    preview:render_with_inlay(self.buffer, prior_delete, completion_text, line_after_cursor, line_before_cursor)
   end
 end
 

@@ -29,7 +29,6 @@ local M = {}
 ---@field max_tokens? number
 ---@field debounce_ms? number
 ---@field context_lines? number
----@field max_lines? number
 
 ---@type SupertabConfig
 local default_config = {
@@ -57,7 +56,6 @@ local default_config = {
     max_tokens = 256,
     debounce_ms = 50,
     context_lines = 10,
-    max_lines = 10,
   },
 }
 

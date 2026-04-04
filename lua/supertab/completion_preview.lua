@@ -26,14 +26,12 @@ local CompletionPreview = {
 ---@param completion_text string
 ---@param line_after_cursor string
 ---@param line_before_cursor string
----@param max_lines? number
 function CompletionPreview:render_with_inlay(
   buffer,
   prior_delete,
   completion_text,
   line_after_cursor,
-  line_before_cursor,
-  max_lines
+  line_before_cursor
 )
   self:dispose_inlay()
 
@@ -61,7 +59,7 @@ function CompletionPreview:render_with_inlay(
     self:render_floating(first_line, opts, buf, line_before_cursor)
     completion_text = first_line
   else
-    self:render_standard(first_line, processed_text.other_lines, opts, buf, max_lines)
+    self:render_standard(first_line, processed_text.other_lines, opts, buf)
   end
 
   ---@type InlayInstance
@@ -97,27 +95,17 @@ end
 ---@param other_lines string[]
 ---@param opts table
 ---@param buf integer
----@param max_lines? number
-function CompletionPreview:render_standard(first_line, other_lines, opts, buf, max_lines)
+function CompletionPreview:render_standard(first_line, other_lines, opts, buf)
   if self.disable_inline_completion then
     return
   end
-
-  max_lines = max_lines or 10
 
   if first_line ~= "" then
     opts.virt_text = { { first_line, self.suggestion_group } }
   end
 
   if #other_lines > 0 then
-    -- Apply max_lines limit
-    local lines_to_show = other_lines
-    if #other_lines > max_lines then
-      lines_to_show = vim.list_slice(other_lines, 1, max_lines)
-      -- Add truncation indicator
-      table.insert(lines_to_show, { { "...", self.suggestion_group } })
-    end
-    opts.virt_lines = lines_to_show
+    opts.virt_lines = other_lines
   end
 
   opts.virt_text_win_col = vim.fn.virtcol(".") - 1
