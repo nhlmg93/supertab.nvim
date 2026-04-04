@@ -1,9 +1,68 @@
 local M = {}
 
+---@param pattern string
+---@param lps integer[]
+local function compute_lps(pattern, lps)
+  local length = 0
+  local i = 2
+  lps[1] = 0
+
+  while i <= #pattern do
+    if pattern:sub(i, i) == pattern:sub(length + 1, length + 1) then
+      length = length + 1
+      lps[i] = length
+      i = i + 1
+    else
+      if length ~= 0 then
+        length = lps[length]
+      else
+        lps[i] = 0
+        i = i + 1
+      end
+    end
+  end
+end
+
+---KMP search: check if pattern b exists in text a
 ---@param a string
 ---@param b string
 ---@return boolean
 function M.contains(a, b)
+  local m, n = #a, #b
+  if m < n then
+    return false
+  end
+  if n == 0 then
+    return true
+  end
+
+  local lps = {}
+  compute_lps(b, lps)
+
+  local i, j = 1, 1
+  while i <= m do
+    if a:sub(i, i) == b:sub(j, j) then
+      i = i + 1
+      j = j + 1
+    end
+    if j > n then
+      return true
+    elseif i <= m and a:sub(i, i) ~= b:sub(j, j) then
+      if j ~= 1 then
+        j = lps[j - 1] + 1
+      else
+        i = i + 1
+      end
+    end
+  end
+  return false
+end
+
+---Simple contains for comparison (Lua pattern search)
+---@param a string
+---@param b string
+---@return boolean
+function M.contains_simple(a, b)
   return a:find(b, 1, true) ~= nil
 end
 
