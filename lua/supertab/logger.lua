@@ -1,5 +1,5 @@
 local config = require("supertab.config")
-local loop = vim.uv or vim.loop
+local loop = vim.uv
 
 ---@class SupertabLogger
 ---@field private __notify_fmt function
@@ -23,10 +23,7 @@ local level_values = {
 local function join_path(...)
   local is_windows = loop.os_uname().version:match("Windows")
   local path_sep = is_windows and "\\" or "/"
-  if vim.version().minor >= 10 then
-    return table.concat(vim.iter({ ... }):flatten():totable(), path_sep):gsub(path_sep .. "+", path_sep)
-  end
-  return table.concat(vim.tbl_flatten({ ... }), path_sep):gsub(path_sep .. "+", path_sep)
+  return table.concat(vim.iter({ ... }):flatten():totable(), path_sep):gsub(path_sep .. "+", path_sep)
 end
 
 ---@return string|nil

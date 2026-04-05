@@ -9,6 +9,20 @@ M.current_request = nil
 ---@type table|nil
 M.pending_request = nil
 
+---@param hostname string
+---@return string|nil ip
+local function resolve_host(hostname)
+  -- Already a numeric IP
+  if hostname:match("^%d+%.%d+%.%d+%.%d+$") then
+    return hostname
+  end
+  local res = vim.uv.getaddrinfo(hostname, nil, { family = "inet", socktype = "stream" })
+  if res and res[1] and res[1].addr then
+    return res[1].addr
+  end
+  return nil
+end
+
 ---@param endpoint string
 ---@return string ip, integer port, string path, string host_port
 local function parse_url(endpoint)
@@ -23,13 +37,17 @@ local function parse_url(endpoint)
     path = "/"
   end
   local colon = host_port:find(":")
-  local ip, port
+  local host, port
   if colon then
-    ip = host_port:sub(1, colon - 1)
+    host = host_port:sub(1, colon - 1)
     port = tonumber(host_port:sub(colon + 1)) or 11434
   else
-    ip = host_port
+    host = host_port
     port = 11434
+  end
+  local ip = resolve_host(host)
+  if not ip then
+    error("Could not resolve hostname: " .. host)
   end
   return ip, port, path, host_port
 end

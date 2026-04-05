@@ -189,7 +189,7 @@ function CompletionPreview.on_accept_suggestion(is_partial)
       },
     }
 
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Space><Left><Del>", true, false, true), "n", false)
+    vim.api.nvim_feedkeys(vim.keycode("<Space><Left><Del>"), "n", false)
     vim.lsp.util.apply_text_edits(
       { { range = range, newText = completion_text } },
       vim.api.nvim_get_current_buf(),
@@ -206,7 +206,7 @@ function CompletionPreview.on_accept_suggestion(is_partial)
     end
     vim.api.nvim_win_set_cursor(0, new_cursor_pos)
   else
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", true)
+    vim.api.nvim_feedkeys(vim.keycode("<Tab>"), "n", true)
   end
 end
 

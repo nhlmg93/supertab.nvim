@@ -6,25 +6,14 @@ local api = require("supertab.api")
 
 local M = {}
 
----@param min_version string
----@return boolean
-local function check_version(min_version)
-  local nvim_version = vim.version()
-  local min = vim.version.parse(min_version)
-  if not min then
-    return false
-  end
-  return nvim_version.major > min.major or (nvim_version.major == min.major and nvim_version.minor >= min.minor)
-end
-
 ---@param opts? SupertabConfig
 M.setup = function(opts)
   -- Check minimum Neovim version
-  if not check_version("0.9.0") then
+  if not vim.fn.has("nvim-0.12.0") then
     local version = vim.version()
     local version_str = string.format("%d.%d.%d", version.major, version.minor, version.patch)
-    log:error("supertab.nvim requires Neovim 0.9.0+. You have " .. version_str)
-    vim.notify("supertab.nvim requires Neovim 0.9.0+", vim.log.levels.ERROR, { title = "Supertab" })
+    log:error("supertab.nvim requires Neovim 0.12.0+. You have " .. version_str)
+    vim.notify("supertab.nvim requires Neovim 0.12.0+", vim.log.levels.ERROR, { title = "Supertab" })
     return
   end
 

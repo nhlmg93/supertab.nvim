@@ -2,7 +2,7 @@
 
 AI-powered code completion for Neovim using [Ollama](https://ollama.com). Get intelligent, context-aware suggestions as you type.
 
-[![Neovim](https://img.shields.io/badge/Neovim-0.9+-green.svg)](https://neovim.io)
+[![Neovim](https://img.shields.io/badge/Neovim-0.12+-green.svg)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-blue.svg)](https://www.lua.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -16,7 +16,7 @@ AI-powered code completion for Neovim using [Ollama](https://ollama.com). Get in
 
 ## Requirements
 
-- Neovim 0.9+
+- Neovim 0.12+
 - [Ollama](https://ollama.com) installed and running locally
 - Optional: [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) for completion menu support
 
@@ -205,7 +205,7 @@ vim.keymap.set("i", "<Esc>", function()
   if preview.has_suggestion() then
     preview.on_dispose_inlay()
   else
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+    vim.api.nvim_feedkeys(vim.keycode("<Esc>"), "n", false)
   end
 end)
 ```

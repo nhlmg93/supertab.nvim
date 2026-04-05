@@ -130,6 +130,6 @@ function M.to_next_word(str)
   return str
 end
 
-M.uv = vim.uv or vim.loop
+M.uv = vim.uv
 
 return M

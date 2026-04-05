@@ -21,7 +21,7 @@ as you type, similar to GitHub Copilot but using your local Ollama instance.
 ===============================================================================
 REQUIREMENTS                                      *supertab-requirements*
 
-- Neovim 0.9+
+- Neovim 0.12+
 - Ollama installed and running locally (https://ollama.com)
 - Optional: nvim-cmp for completion menu integration
 

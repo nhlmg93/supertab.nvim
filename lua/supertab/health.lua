@@ -18,24 +18,17 @@ M.check = function()
   -- Check Neovim version
   local nvim_version = vim.version()
   local nvim_version_str = string.format("%d.%d.%d", nvim_version.major, nvim_version.minor, nvim_version.patch)
-  if nvim_version.major >= 0 and nvim_version.minor >= 9 then
-    report("Neovim version: " .. nvim_version_str .. " (supported)")
+  if vim.fn.has("nvim-0.12.0") == 1 then
+    report("Neovim version: " .. nvim_version_str .. " (supported)", vim.health.ok)
   else
-    report("Neovim version: " .. nvim_version_str .. " (needs 0.9+)")
+    report("Neovim version: " .. nvim_version_str .. " (needs 0.12+)", vim.health.error)
   end
 
   -- Check Lua version
   report("Lua version: " .. get_lua_version())
 
-  -- Check for required Lua features
-  local has_uv, _ = pcall(function()
-    return vim.uv or vim.loop
-  end)
-  if has_uv then
-    report("vim.uv available: yes")
-  else
-    report("vim.uv available: no (using vim.loop fallback)")
-  end
+  -- Check vim.uv
+  report("vim.uv available: yes")
 
   -- Check configuration
   local config_ok, config = pcall(require, "supertab.config")

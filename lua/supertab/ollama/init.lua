@@ -160,14 +160,12 @@ function OllamaLifecycle:debounced_completion(buffer, cursor, context)
     self.debounce_timer = loop.new_timer()
   end
 
-  self.debounce_timer:start(
-    self.debounce_ms,
-    0,
-    vim.schedule_wrap(function()
+  self.debounce_timer:start(self.debounce_ms, 0, function()
+    vim.schedule(function()
       local current_cursor = api.nvim_win_get_cursor(0)
       self:provide_completion(buffer, current_cursor, context)
     end)
-  )
+  end)
 end
 
 ---@param buffer integer
