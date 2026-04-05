@@ -72,7 +72,7 @@ Configure via the setup function: >
         host = "http://localhost:11434",
         model = "codellama",
         temperature = 0.2,
-        max_tokens = 64,
+        max_tokens = 16,
         debounce_ms = 50,
         context_lines = 10,
       },

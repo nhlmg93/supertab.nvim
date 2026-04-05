@@ -53,7 +53,7 @@ local default_config = {
     temperature = 0.2,
     top_p = 0.9,
     top_k = 40,
-    max_tokens = 256,
+    max_tokens = 16,
     debounce_ms = 50,
     context_lines = 10,
   },
