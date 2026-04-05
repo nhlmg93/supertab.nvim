@@ -11,6 +11,7 @@ AI-powered code completion for Neovim using [Ollama](https://ollama.com). Get in
 - 🤖 **Local AI completion** - Uses your local Ollama instance, no data leaves your machine
 - ⚡ **Streaming suggestions** - See completions appear character-by-character
 - 🎯 **Context-aware** - Understands your code context for relevant suggestions
+- 📝 **Doc snippet** - Type `~doc` on empty line for AI-generated documentation
 - 🔌 **nvim-cmp integration** - Works as a completion source for nvim-cmp
 - ⚙️ **Highly configurable** - Customizable keymaps, debounce, models, and more
 
@@ -63,21 +64,14 @@ use {
 
 ```lua
 require("supertab").setup({
-  -- Keymaps (set to false to disable)
-  keymaps = {
-    accept_suggestion = "<Tab>",
-    clear_suggestion = "<C-]>",
-    accept_word = "<C-j>",
-  },
+  -- Mode: "completion" (default) or "doc"
+  mode = "completion",
 
   -- Disable for specific filetypes
   ignore_filetypes = { "TelescopePrompt", "NvimTree" },
 
   -- Disable inline ghost text
   disable_inline_completion = false,
-
-  -- Disable all default keymaps (for manual configuration)
-  disable_keymaps = false,
 
   -- Condition function to disable supertab
   -- Return true to disable for current context
@@ -100,55 +94,83 @@ require("supertab").setup({
     host = "http://localhost:11434",
     model = "codellama",     -- or "llama2", "deepseek-coder", etc.
     temperature = 0.2,       -- lower = more deterministic
-    max_tokens = 16,         -- max tokens to generate
+    max_tokens = 16,         -- completion mode tokens
+    doc_max_tokens = 512,    -- doc mode tokens
     debounce_ms = 50,        -- delay before triggering completion
     context_lines = 10,      -- lines of context to send
     max_lines = 10,          -- max ghost text lines to display
+  },
+
+  -- Doc snippet configuration
+  doc_snippet = {
+    enabled = true,          -- Enable ~doc snippet
+    trigger = "~doc",        -- Trigger text
   },
 })
 ```
 
 ## Usage
 
-### Default Keymaps
-
-| Key | Action |
-|-----|--------|
-| `<Tab>` | Accept full suggestion |
-| `<C-]>` | Clear suggestion |
-| `<C-j>` | Accept next word only |
-
 ### Commands
 
-```vim
-:SupertabStart        " Start completion
-:SupertabStop         " Stop completion  
-:SupertabToggle       " Toggle on/off
-:SupertabRestart      " Restart service
-:SupertabStatus       " Show status
-:SupertabShowLog      " Open log file
-:SupertabClearLog     " Clear log file
-:SupertabOllamaCheck  " Check Ollama connection
+| Command | Description |
+|-----|--------|
+| `:SupertabAccept` | Accept full suggestion |
+| `:SupertabAcceptWord` | Accept next word |
+| `:SupertabClear` | Clear suggestion |
+| `:SupertabToggleMode` | Toggle completion/doc mode |
+| `:SupertabStart` | Start completion |
+| `:SupertabStop` | Stop completion |
+| `:SupertabToggle` | Toggle on/off |
+| `:SupertabRestart` | Restart service |
+| `:SupertabStatus` | Show status |
+| `:SupertabShowLog` | Open log file |
+| `:SupertabClearLog` | Clear log file |
+| `:SupertabOllamaCheck` | Check Ollama connection |
+
+### Doc Snippet
+
+Type `~doc` on any empty line to insert a documentation template:
+
 ```
+~doc  →  /*
+          Document: $1
+
+          ```lua
+
+          $2
+
+          ```
+          */
+```
+
+1. Type your topic after `Document:` at `$1`
+2. Press `<Tab>` — AI generates a code example at `$2`
+3. Press `<Tab>` again to exit the snippet
+
+### Modes
+
+Supertab has two modes, toggled via `:SupertabToggleMode`:
+
+- **completion** (default): Inline FIM suggestions as you type
+- **doc**: Completions off. Type `~doc` to get an AI-generated example inserted into your code
 
 ### Lua API
 
 ```lua
 local api = require("supertab.api")
 
-api.start()           -- Start service
-api.stop()            -- Stop service
-api.restart()         -- Restart service
-api.toggle()          -- Toggle service
-api.is_running()      -- Check if running
-api.get_backend()     -- Get backend name
-
--- Completion preview API
-local preview = require("supertab.completion_preview")
-preview.on_accept_suggestion()      -- Accept full
-preview.on_accept_suggestion_word() -- Accept word
-preview.on_dispose_inlay()          -- Clear
-preview.has_suggestion()            -- Check active
+api.accept_suggestion()  -- Accept suggestion (or jump snippet)
+api.accept_word()        -- Accept next word
+api.clear_suggestion()   -- Clear suggestion
+api.toggle_mode()        -- Toggle completion/doc mode
+api.get_mode()           -- Returns "completion" or "doc"
+api.start()              -- Start service
+api.stop()               -- Stop service
+api.restart()            -- Restart service
+api.toggle()             -- Toggle service
+api.is_running()         -- Check if running
+api.get_backend()        -- Get backend name
 ```
 
 ## nvim-cmp Integration
@@ -183,31 +205,15 @@ Run `:checkhealth supertab` to verify:
 - Ollama connection status
 - Optional dependencies
 
-## Custom Keymaps
+## Keymaps
 
-Disable defaults and configure your own:
+Supertab ships no default keymaps. Bind commands to your preferred keys:
 
 ```lua
-require("supertab").setup({
-  disable_keymaps = true,
-})
-
-local preview = require("supertab.completion_preview")
-
--- Accept with Alt-Tab
-vim.keymap.set("i", "<M-Tab>", preview.on_accept_suggestion)
-
--- Accept word with Alt-w  
-vim.keymap.set("i", "<M-w>", preview.on_accept_suggestion_word)
-
--- Clear with Esc (you probably want to keep this one)
-vim.keymap.set("i", "<Esc>", function()
-  if preview.has_suggestion() then
-    preview.on_dispose_inlay()
-  else
-    vim.api.nvim_feedkeys(vim.keycode("<Esc>"), "n", false)
-  end
-end)
+vim.keymap.set('i', '<Tab>', '<cmd>SupertabAccept<CR>')
+vim.keymap.set('i', '<C-]>', '<cmd>SupertabClear<CR>')
+vim.keymap.set('i', '<C-j>', '<cmd>SupertabAcceptWord<CR>')
+vim.keymap.set({ 'n', 'i' }, '<C-t>', '<cmd>SupertabToggleMode<CR>')
 ```
 
 ## Troubleshooting

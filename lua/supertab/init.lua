@@ -1,8 +1,8 @@
-local completion_preview = require("supertab.completion_preview")
 local log = require("supertab.logger")
 local config = require("supertab.config")
 local commands = require("supertab.commands")
 local api = require("supertab.api")
+local doc_snippet = require("supertab.doc_snippet")
 
 local M = {}
 
@@ -30,38 +30,11 @@ M.setup = function(opts)
     end
   end
 
-  -- Setup keymaps
-  if not config.disable_inline_completion and not config.disable_keymaps then
-    -- Use buffer-local keymaps for the current buffer
-    -- In practice, these should be set up per-buffer via autocmd
-    -- but for now we use global keymaps
-    if config.keymaps.accept_suggestion then
-      vim.keymap.set("i", config.keymaps.accept_suggestion, completion_preview.on_accept_suggestion, {
-        noremap = true,
-        silent = true,
-        desc = "Accept supertab suggestion",
-      })
-    end
-
-    if config.keymaps.accept_word then
-      vim.keymap.set("i", config.keymaps.accept_word, completion_preview.on_accept_suggestion_word, {
-        noremap = true,
-        silent = true,
-        desc = "Accept next word of supertab suggestion",
-      })
-    end
-
-    if config.keymaps.clear_suggestion then
-      vim.keymap.set("i", config.keymaps.clear_suggestion, completion_preview.on_dispose_inlay, {
-        noremap = true,
-        silent = true,
-        desc = "Clear supertab suggestion",
-      })
-    end
-  end
-
   -- Setup commands
   commands.setup()
+
+  -- Setup doc snippet (always active, even when stopped)
+  doc_snippet.setup()
 
   -- Register nvim-cmp source if available
   local has_cmp, cmp = pcall(require, "cmp")

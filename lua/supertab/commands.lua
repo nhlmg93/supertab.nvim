@@ -7,8 +7,9 @@ local M = {}
 ---@return string
 local function get_backend_status()
   local backend = api.get_backend()
+  local mode = api.get_mode()
   local status = api.is_running() and "running" or "not running"
-  return string.format("Supertab is %s (backend: %s)", status, backend)
+  return string.format("Supertab is %s (mode: %s, backend: %s)", status, mode, backend)
 end
 
 M.setup = function()
@@ -27,6 +28,22 @@ M.setup = function()
   vim.api.nvim_create_user_command("SupertabToggle", function()
     api.toggle()
   end, { desc = "Toggle supertab completion" })
+
+  vim.api.nvim_create_user_command("SupertabAccept", function()
+    api.accept_suggestion()
+  end, { desc = "Accept supertab suggestion" })
+
+  vim.api.nvim_create_user_command("SupertabAcceptWord", function()
+    api.accept_word()
+  end, { desc = "Accept next word of supertab suggestion" })
+
+  vim.api.nvim_create_user_command("SupertabClear", function()
+    api.clear_suggestion()
+  end, { desc = "Clear supertab suggestion" })
+
+  vim.api.nvim_create_user_command("SupertabToggleMode", function()
+    api.toggle_mode()
+  end, { desc = "Toggle supertab between completion and doc mode" })
 
   vim.api.nvim_create_user_command("SupertabStatus", function()
     local msg = get_backend_status()

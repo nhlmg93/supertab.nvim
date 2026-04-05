@@ -1,6 +1,7 @@
 local ollama = require("supertab.ollama")
 local preview = require("supertab.completion_preview")
 local config = require("supertab.config")
+local doc_snippet = require("supertab.doc_snippet")
 
 local M = {}
 
@@ -17,6 +18,10 @@ end
 
 ---@param event table
 local function on_text_changed(event)
+  if doc_snippet.is_doc_mode() then
+    return
+  end
+
   local file_name = event.file
   local buffer = event.buf
   if not file_name or not buffer then
@@ -49,6 +54,10 @@ end
 
 ---@param event table
 local function on_cursor_moved(event)
+  if doc_snippet.is_doc_mode() then
+    return
+  end
+
   local file_name = event.file
   local buffer = event.buf
   if not file_name or not buffer then
@@ -63,6 +72,9 @@ end
 
 ---@param _event table
 local function on_insert_leave(_event)
+  if doc_snippet.is_doc_mode() then
+    return
+  end
   preview:dispose_inlay()
 end
 

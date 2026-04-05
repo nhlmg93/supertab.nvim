@@ -105,7 +105,7 @@ local function http_request(method, url, body, on_token, on_done)
       return
     end
 
-    local token = data.response or ""
+    local token = data.response or (data.message and data.message.content) or ""
     if #token > 0 then
       accumulated = accumulated .. token
       if on_token then
@@ -249,13 +249,64 @@ local function http_request(method, url, body, on_token, on_done)
   end
 end
 
+---@param prompt string
+---@return table
+function M.build_doc_request_body(prompt)
+  local ollama_config = config.ollama
+  local max_tokens = ollama_config.doc_max_tokens or 512
+  local system = "You write code examples. Rules:\n"
+    .. "- Output ONLY code, nothing else\n"
+    .. "- First line must be code, not a comment\n"
+    .. "- Short inline comments only on non-obvious lines\n"
+    .. "- No introductions, no summaries, no markdown\n"
+    .. "- Max "
+    .. max_tokens
+    .. " tokens"
+  return {
+    model = ollama_config.model,
+    stream = true,
+    think = false,
+    messages = {
+      { role = "system", content = system },
+      { role = "user", content = prompt },
+    },
+    options = {
+      temperature = ollama_config.temperature or 0.2,
+      top_p = ollama_config.top_p or 0.9,
+      top_k = ollama_config.top_k or 40,
+      num_predict = ollama_config.doc_max_tokens or 512,
+    },
+  }
+end
+
+---@param prompt string
+---@param on_done fun(completion: string)
+---@return function cancel
+function M.make_doc_request(prompt, on_done)
+  local url = get_base_url() .. "/api/chat"
+  local body = M.build_doc_request_body(prompt)
+  local body_json = vim.json.encode(body)
+
+  log:debug("Ollama doc request to " .. url)
+
+  return http_request("POST", url, body_json, nil, function(err, full_text)
+    if err then
+      log:error("Ollama doc request failed: " .. err)
+      on_done("")
+      return
+    end
+    full_text = full_text:gsub("^%s*```[a-zA-Z]*%s*\n", ""):gsub("\n%s*```%s*$", "")
+    on_done(full_text)
+  end)
+end
+
 ---@param prefix string
 ---@param suffix string
 ---@return table
 function M.build_request_body(prefix, suffix)
   local ollama_config = config.ollama
   return {
-    model = ollama_config.model or "codellama",
+    model = ollama_config.model,
     stream = true,
     think = false,
     prompt = prefix,
