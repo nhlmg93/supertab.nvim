@@ -187,6 +187,15 @@ end
 --- Called when Tab jumps within the doc snippet.
 --- Returns true if we handled the jump.
 function M.on_snippet_jump()
+  log:debug(
+    "doc_snippet.on_snippet_jump(): is_expanding="
+      .. tostring(is_expanding)
+      .. ", snippet_active="
+      .. tostring(vim.snippet.active())
+      .. ", waiting_for_body="
+      .. tostring(waiting_for_body)
+  )
+
   if not is_expanding or not vim.snippet.active() then
     return false
   end
@@ -202,16 +211,36 @@ function M.on_snippet_jump()
       return true
     end
 
+    log:debug("Doc snippet prompt captured: " .. prompt)
+
     local filetype = vim.bo.filetype or "text"
     local bufnr = api.nvim_get_current_buf()
     local cursor = api.nvim_win_get_cursor(0)
     local full_prompt = filetype .. ": " .. prompt
 
     -- Anchor throb at the $2 cursor position
-    local client = require("supertab.ollama.client")
+    local clients_mod = require("supertab.clients")
+    local client_name = config.get_active_client()
+    local client = clients_mod.get(client_name)
+
+    if not client then
+      log:debug("Doc snippet client '" .. client_name .. "' not yet loaded, requiring module")
+      pcall(require, "supertab.clients." .. client_name)
+      client = clients_mod.get(client_name)
+    end
+
     local row = cursor[1] - 1
     local col = cursor[2]
     start_throb(bufnr, row, col)
+
+    -- Check if client supports doc generation
+    if not client or not client.make_doc_request then
+      log:error("Doc snippet: configured client '" .. client_name .. "' does not support doc generation")
+      stop_throb()
+      return true
+    end
+
+    log:debug("Doc snippet issuing doc request via client '" .. client_name .. "' with prompt: " .. full_prompt)
 
     doc_cancel_fn = client.make_doc_request(full_prompt, function(completion)
       doc_cancel_fn = nil
@@ -219,8 +248,15 @@ function M.on_snippet_jump()
       local ins_row, ins_col = get_insert_pos()
       stop_throb()
       if not completion or #completion == 0 or not ins_row then
+        log:debug(
+          "Doc snippet completion callback: no insertion; completion_len="
+            .. tostring(completion and #completion or 0)
+            .. ", insert_row="
+            .. tostring(ins_row)
+        )
         return
       end
+      log:debug("Doc snippet completion callback: inserting " .. tostring(#completion) .. " chars")
       local lines = vim.split(completion, "\n", { plain = true })
       api.nvim_buf_set_text(insert_bufnr, ins_row, ins_col, ins_row, ins_col, lines)
     end)

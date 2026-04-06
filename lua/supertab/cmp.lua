@@ -1,19 +1,17 @@
+---nvim-cmp source integration
 local CompletionPreview = require("supertab.completion_preview")
-local util = require("supertab.util")
-
-local loop = util.uv
 
 ---@class SupertabCmpSource
----@field client any
----@field timer userdata
 ---@field executions table
 local source = {
   executions = {},
 }
 
+---Shorten text for label
 ---@param text string
 ---@return string
 local function label_text(text)
+  ---@param str string
   local function shorten(str)
     local short_prefix = string.sub(str, 1, 20)
     local short_suffix = string.sub(str, string.len(str) - 15, string.len(str))
@@ -36,6 +34,7 @@ function source.is_available()
   return true
 end
 
+---Resolve completion item
 ---@param completion_item table
 ---@param callback function
 function source:resolve(completion_item, callback)
@@ -45,6 +44,7 @@ function source:resolve(completion_item, callback)
   callback(completion_item)
 end
 
+---Execute completion item
 ---@param completion_item table
 ---@param callback function
 function source:execute(completion_item, callback)
@@ -52,6 +52,7 @@ function source:execute(completion_item, callback)
   callback(completion_item)
 end
 
+---Complete with supertab suggestion
 ---@param params table
 ---@param callback function
 function source:complete(params, callback)
@@ -84,7 +85,7 @@ function source:complete(params, callback)
     },
     ["end"] = {
       line = cursor.line,
-      character = vim.fn.col("$") - 1,
+      character = vim.api.nvim_get_current_line():len(),
     },
   }
 
@@ -118,10 +119,10 @@ function source:complete(params, callback)
   })
 end
 
+---Create new cmp source instance
 ---@return SupertabCmpSource
 function source.new()
   local self = setmetatable({
-    timer = loop.new_timer(),
     executions = {},
   }, { __index = source })
 

@@ -1,3 +1,4 @@
+---Main entry point for supertab.nvim
 local log = require("supertab.logger")
 local config = require("supertab.config")
 local commands = require("supertab.commands")
@@ -9,7 +10,7 @@ local M = {}
 ---@param opts? SupertabConfig
 M.setup = function(opts)
   -- Check minimum Neovim version
-  if not vim.fn.has("nvim-0.12.0") then
+  if vim.fn.has("nvim-0.12.0") == 0 then
     local version = vim.version()
     local version_str = string.format("%d.%d.%d", version.major, version.minor, version.patch)
     log:error("supertab.nvim requires Neovim 0.12.0+. You have " .. version_str)
@@ -19,15 +20,14 @@ M.setup = function(opts)
 
   config.setup(opts)
 
-  -- Apply Ollama settings
-  if config.ollama and config.ollama.enable then
-    log:info("Ollama integration enabled")
-    log:debug("Ollama config: " .. vim.inspect(config.ollama))
+  -- Load built-in clients.
+  require("supertab.clients.ollama")
 
-    local ollama = require("supertab.ollama")
-    if config.ollama.debounce_ms then
-      ollama.debounce_ms = config.ollama.debounce_ms
-    end
+  -- Apply client settings if enabled
+  if config.is_client_enabled("ollama") then
+    local client_config = config.get_client_config("ollama")
+    log:info("Ollama integration enabled")
+    log:debug("Ollama config: " .. vim.inspect(client_config))
   end
 
   -- Setup commands

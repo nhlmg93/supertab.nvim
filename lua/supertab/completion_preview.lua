@@ -1,4 +1,6 @@
+---Completion preview rendering with inline ghost text
 local util = require("supertab.util")
+local cursor = require("supertab.util.cursor")
 
 ---@class InlayInstance
 ---@field prior_delete number
@@ -21,6 +23,7 @@ local CompletionPreview = {
   disable_inline_completion = false,
 }
 
+---Render completion with inline inlay
 ---@param buffer integer
 ---@param prior_delete number
 ---@param completion_text string
@@ -74,6 +77,7 @@ function CompletionPreview:render_with_inlay(
   }
 end
 
+---Render floating completion at end of line
 ---@param first_line string
 ---@param opts table
 ---@param buf integer
@@ -88,9 +92,10 @@ function CompletionPreview:render_floating(first_line, opts, buf, line_before_cu
   end
 
   opts.virt_text_pos = "eol"
-  vim.api.nvim_buf_set_extmark(buf, self.ns_id, vim.fn.line(".") - 1, 0, opts)
+  vim.api.nvim_buf_set_extmark(buf, self.ns_id, cursor.get_line(), 0, opts)
 end
 
+---Render standard inline completion
 ---@param first_line string
 ---@param other_lines string[]
 ---@param opts table
@@ -108,10 +113,11 @@ function CompletionPreview:render_standard(first_line, other_lines, opts, buf)
     opts.virt_lines = other_lines
   end
 
-  opts.virt_text_win_col = vim.fn.virtcol(".") - 1
-  vim.api.nvim_buf_set_extmark(buf, self.ns_id, vim.fn.line(".") - 1, vim.fn.col(".") - 1, opts)
+  opts.virt_text_win_col = cursor.get_col()
+  vim.api.nvim_buf_set_extmark(buf, self.ns_id, cursor.get_line(), cursor.get_col(), opts)
 end
 
+---Dispose the current inlay
 function CompletionPreview:dispose_inlay()
   local current_instance = self.inlay_instance
   if current_instance == nil then
@@ -125,6 +131,7 @@ function CompletionPreview:dispose_inlay()
   self.inlay_instance = nil
 end
 
+---Accept completion text
 ---@param is_partial boolean|nil
 ---@return {completion_text: string, prior_delete: number, is_active: boolean}|nil
 function CompletionPreview:accept_completion_text(is_partial)
@@ -145,6 +152,7 @@ function CompletionPreview:accept_completion_text(is_partial)
   end
 end
 
+---Check if completion should be active
 ---@param completion_text string
 ---@param line_before_cursor string
 ---@param first_line string
@@ -165,27 +173,29 @@ function CompletionPreview:should_completion_be_active(completion_text, line_bef
   return false
 end
 
+---Get current inlay instance
 ---@return InlayInstance|nil
 function CompletionPreview:get_inlay_instance()
   return self.inlay_instance
 end
 
+---Accept current suggestion
 ---@param is_partial boolean|nil
 function CompletionPreview.on_accept_suggestion(is_partial)
   local accept_completion = CompletionPreview:accept_completion_text(is_partial)
   if accept_completion ~= nil and accept_completion.is_active then
     local completion_text = accept_completion.completion_text
     local prior_delete = accept_completion.prior_delete
-    local cursor = vim.api.nvim_win_get_cursor(0)
+    local cur = cursor.get_position()
 
     local range = {
       start = {
-        line = cursor[1] - 1,
-        character = math.max(cursor[2] - prior_delete, 0),
+        line = cur[1] - 1,
+        character = math.max(cur[2] - prior_delete, 0),
       },
       ["end"] = {
-        line = cursor[1] - 1,
-        character = vim.fn.col("$") - 1,
+        line = cur[1] - 1,
+        character = vim.api.nvim_get_current_line():len(),
       },
     }
 
@@ -200,24 +210,27 @@ function CompletionPreview.on_accept_suggestion(is_partial)
     local last_line = util.get_last_line(completion_text)
     local new_cursor_pos
     if lines > 0 then
-      new_cursor_pos = { cursor[1] + lines, #last_line }
+      new_cursor_pos = { cur[1] + lines, #last_line }
     else
-      new_cursor_pos = { cursor[1], cursor[2] + #last_line }
+      new_cursor_pos = { cur[1], cur[2] + #last_line }
     end
-    vim.api.nvim_win_set_cursor(0, new_cursor_pos)
+    cursor.set_position(new_cursor_pos[1] - 1, new_cursor_pos[2])
   else
     vim.api.nvim_feedkeys(vim.keycode("<Tab>"), "n", true)
   end
 end
 
+---Accept word from suggestion
 function CompletionPreview.on_accept_suggestion_word()
   CompletionPreview.on_accept_suggestion(true)
 end
 
+---Dispose inlay from external call
 function CompletionPreview.on_dispose_inlay()
   CompletionPreview:dispose_inlay()
 end
 
+---Check if there's an active suggestion
 ---@return boolean
 function CompletionPreview.has_suggestion()
   local inlay_instance = CompletionPreview:get_inlay_instance()

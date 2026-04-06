@@ -1,6 +1,6 @@
 # supertab.nvim
 
-AI-powered code completion for Neovim using [Ollama](https://ollama.com). Get intelligent, context-aware suggestions as you type.
+AI-powered code completion for Neovim with built-in [Ollama](https://ollama.com) support and a client architecture ready for additional backends.
 
 [![Neovim](https://img.shields.io/badge/Neovim-0.12+-green.svg)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-blue.svg)](https://www.lua.org)
@@ -8,7 +8,7 @@ AI-powered code completion for Neovim using [Ollama](https://ollama.com). Get in
 
 ## Features
 
-- 🤖 **Local AI completion** - Uses your local Ollama instance, no data leaves your machine
+- 🤖 **AI completion** - Built-in Ollama client today, extensible client architecture for more backends
 - ⚡ **Streaming suggestions** - See completions appear character-by-character
 - 🎯 **Context-aware** - Understands your code context for relevant suggestions
 - 📝 **Doc snippet** - Type `~doc` on empty line for AI-generated documentation
@@ -41,8 +41,11 @@ Or with explicit setup:
   "nhlmg93/supertab.nvim",
   config = function()
     require("supertab").setup({
-      ollama = {
-        model = "codellama",
+      client = "ollama",
+      clients = {
+        ollama = {
+          model = "codellama",
+        },
       },
     })
   end,
@@ -67,14 +70,16 @@ require("supertab").setup({
   -- Mode: "completion" (default) or "doc"
   mode = "completion",
 
+  -- Active client
+  client = "ollama",
+
   -- Disable for specific filetypes
   ignore_filetypes = { "TelescopePrompt", "NvimTree" },
 
   -- Disable inline ghost text
   disable_inline_completion = false,
 
-  -- Condition function to disable supertab
-  -- Return true to disable for current context
+  -- Return true to disable supertab for the current context
   condition = function()
     return false
   end,
@@ -88,23 +93,26 @@ require("supertab").setup({
     cterm = 244,
   },
 
-  -- Ollama configuration
-  ollama = {
-    enable = true,
-    host = "http://localhost:11434",
-    model = "codellama",     -- or "llama2", "deepseek-coder", etc.
-    temperature = 0.2,       -- lower = more deterministic
-    max_tokens = 16,         -- completion mode tokens
-    doc_max_tokens = 512,    -- doc mode tokens
-    debounce_ms = 50,        -- delay before triggering completion
-    context_lines = 10,      -- lines of context to send
-    max_lines = 10,          -- max ghost text lines to display
+  -- Per-client configuration
+  clients = {
+    ollama = {
+      enable = true,
+      host = "http://localhost:11434",
+      model = "codellama", -- or "codestral", "deepseek-coder", etc.
+      temperature = 0.2,
+      top_p = 0.9,
+      top_k = 40,
+      max_tokens = 16,
+      doc_max_tokens = 512,
+      debounce_ms = 50,
+      context_lines = 10,
+    },
   },
 
   -- Doc snippet configuration
   doc_snippet = {
-    enabled = true,          -- Enable ~doc snippet
-    trigger = "~doc",        -- Trigger text
+    enabled = true,
+    trigger = "~doc",
   },
 })
 ```
@@ -127,6 +135,7 @@ require("supertab").setup({
 | `:SupertabShowLog` | Open log file |
 | `:SupertabClearLog` | Clear log file |
 | `:SupertabOllamaCheck` | Check Ollama connection |
+| `:SupertabClientCheck` | Check configured client availability |
 
 ### Doc Snippet
 
@@ -202,7 +211,8 @@ vim.api.nvim_set_hl(0, "CmpItemKindSupertab", { fg = "#6CC644" })
 
 Run `:checkhealth supertab` to verify:
 - Neovim version compatibility
-- Ollama connection status
+- Configured client status
+- Registered client availability
 - Optional dependencies
 
 ## Keymaps
@@ -219,9 +229,10 @@ vim.keymap.set({ 'n', 'i' }, '<C-t>', '<cmd>SupertabToggleMode<CR>')
 ## Troubleshooting
 
 **No suggestions appearing:**
-1. Check Ollama is running: `:SupertabOllamaCheck`
-2. Check logs: `:SupertabShowLog`
-3. Run health check: `:checkhealth supertab`
+1. Check the configured client: `:SupertabClientCheck`
+2. If you use Ollama specifically: `:SupertabOllamaCheck`
+3. Check logs: `:SupertabShowLog`
+4. Run health check: `:checkhealth supertab`
 
 **Slow suggestions:**
 - Increase `debounce_ms` (default 50ms)

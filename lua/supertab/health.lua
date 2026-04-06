@@ -1,3 +1,4 @@
+---Health check implementation
 local M = {}
 
 ---@return string
@@ -22,6 +23,7 @@ M.check = function()
     report("Neovim version: " .. nvim_version_str .. " (supported)", vim.health.ok)
   else
     report("Neovim version: " .. nvim_version_str .. " (needs 0.12+)", vim.health.error)
+    return
   end
 
   -- Check Lua version
@@ -34,12 +36,17 @@ M.check = function()
   local config_ok, config = pcall(require, "supertab.config")
   if config_ok then
     report("Configuration module: loaded")
-    if config.ollama and config.ollama.enable then
-      report("Ollama backend: enabled")
-      report("Ollama host: " .. (config.ollama.host or "default"))
-      report("Ollama model: " .. (config.ollama.model or "default"))
+
+    -- Check configured client
+    local active_client = config.get_active_client()
+    local client_config = config.get_client_config(active_client)
+
+    if client_config and client_config.enable then
+      report("Active client: " .. active_client)
+      report(active_client .. " host: " .. (client_config.host or "default"))
+      report(active_client .. " model: " .. (client_config.model or "default"))
     else
-      report("Ollama backend: disabled")
+      report("Active client: none (disabled)")
     end
   else
     report("Configuration module: failed to load")
@@ -53,33 +60,68 @@ M.check = function()
     report("nvim-cmp: not installed (optional)")
   end
 
-  -- Check Ollama connection
-  local client_ok, client = pcall(require, "supertab.ollama.client")
-  if client_ok then
-    report("Testing Ollama connection...")
-    -- Async check with timeout
-    local checked = false
-    client.check_availability(function(available, version)
-      checked = true
-      vim.schedule(function()
-        if available then
-          report("Ollama connection: OK" .. (version and " (version: " .. version .. ")" or ""))
-        else
-          report("Ollama connection: failed - server may be down")
-        end
-      end)
-    end)
+  -- Load configured built-in clients so registration has occurred before inspection.
+  if config_ok and config then
+    local client_names = {}
 
-    -- Give it a moment to respond
-    vim.wait(3000, function()
-      return checked
-    end, 100)
-
-    if not checked then
-      report("Ollama connection: timeout (server may be slow or down)")
+    if config.clients then
+      for name, _ in pairs(config.clients) do
+        client_names[name] = true
+      end
     end
-  else
-    report("Ollama client: failed to load")
+
+    client_names[config.get_active_client()] = true
+
+    for name, _ in pairs(client_names) do
+      pcall(require, "supertab.clients." .. name)
+    end
+  end
+
+  -- Check registered clients
+  local clients_ok, clients_registry = pcall(require, "supertab.clients")
+  if clients_ok then
+    local registered = clients_registry.list_registered()
+    report("Registered clients: " .. (#registered > 0 and table.concat(registered, ", ") or "none"))
+
+    -- Track pending checks for async health verification
+    local pending_checks = 0
+    local function on_check_complete()
+      pending_checks = pending_checks - 1
+    end
+
+    -- Check each registered client asynchronously
+    for _, client_name in ipairs(registered) do
+      local client = clients_registry.get(client_name)
+      if client and client.check_availability then
+        pending_checks = pending_checks + 1
+        report("Checking " .. client_name .. "... (async)")
+
+        client.check_availability(function(available, version)
+          vim.schedule(function()
+            if available then
+              report(
+                client_name .. " connection: OK" .. (version and " (version: " .. version .. ")" or ""),
+                vim.health.ok
+              )
+            else
+              report(client_name .. " connection: failed - server may be down", vim.health.warn)
+            end
+            on_check_complete()
+          end)
+        end)
+      end
+    end
+
+    -- Run deferred check timeout notification
+    if pending_checks > 0 then
+      vim.defer_fn(function()
+        vim.schedule(function()
+          if pending_checks > 0 then
+            report("Note: Some client checks may still be in progress (check server status manually)", vim.health.warn)
+          end
+        end)
+      end, 3500)
+    end
   end
 end
 

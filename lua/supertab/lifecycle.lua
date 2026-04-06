@@ -1,12 +1,5 @@
-local api = vim.api
-local util = require("supertab.util")
-local loop = util.uv
-local config = require("supertab.config")
-local preview = require("supertab.completion_preview")
-local client = require("supertab.ollama.client")
-local log = require("supertab.logger")
-
----@class OllamaLifecycle
+---Generic completion lifecycle management (client-agnostic)
+---@class SupertabLifecycle
 ---@field buffer integer|nil
 ---@field cursor integer[]|nil
 ---@field last_provide_time number
@@ -14,13 +7,14 @@ local log = require("supertab.logger")
 ---@field last_path string|nil
 ---@field last_context table|nil
 ---@field is_active boolean
+---@field is_starting boolean
 ---@field cancel_fn function|nil
 ---@field request_id integer
----@field max_request_id integer
 ---@field context_lines integer
 ---@field debounce_ms integer
----@field debounce_timer userdata|nil
-local OllamaLifecycle = {
+---@field _debouncer SupertabDebouncer|nil
+---@field _availability_seq integer
+local Lifecycle = {
   buffer = nil,
   cursor = nil,
   last_provide_time = 0,
@@ -28,75 +22,112 @@ local OllamaLifecycle = {
   last_path = nil,
   last_context = nil,
   is_active = false,
+  is_starting = false,
   cancel_fn = nil,
   request_id = 0,
-  max_request_id = 50,
   context_lines = 10,
   debounce_ms = 50,
-  debounce_timer = nil,
+  _debouncer = nil,
+  _availability_seq = 0,
 }
 
----@return boolean
-function OllamaLifecycle:is_available()
-  local ollama_config = config.ollama
-  if not ollama_config or not ollama_config.enable then
-    return false
+local util = require("supertab.util")
+local cursor = require("supertab.util.cursor")
+local preview = require("supertab.completion_preview")
+local config = require("supertab.config")
+local log = require("supertab.logger")
+local clients = require("supertab.clients")
+local timer = require("supertab.util.timer")
+
+---Initialize lifecycle with client config
+---@param client_config table Client-specific configuration
+function Lifecycle:init(client_config)
+  if client_config and client_config.debounce_ms then
+    self.debounce_ms = client_config.debounce_ms
   end
-  return true
+  if client_config and client_config.context_lines then
+    self.context_lines = client_config.context_lines
+  end
 end
 
-function OllamaLifecycle:start()
-  if not self:is_available() then
-    log:warn("Ollama is not enabled or not configured")
+---Check if lifecycle has an active client
+---@return boolean
+function Lifecycle:has_active_client()
+  local client = clients.get_active()
+  return client ~= nil
+end
+
+---Start lifecycle with current client
+function Lifecycle:start()
+  if not self:has_active_client() then
+    log:warn("No active client available")
     return
   end
 
-  local ollama_config = config.ollama
-  if ollama_config.debounce_ms then
-    self.debounce_ms = ollama_config.debounce_ms
+  local active_client_name = config.get_active_client()
+  local client_config = config.get_client_config(active_client_name)
+  local client = clients.get_active()
+
+  if client_config and client_config.debounce_ms then
+    self.debounce_ms = client_config.debounce_ms
   end
-  if ollama_config.context_lines then
-    self.context_lines = ollama_config.context_lines
+  if client_config and client_config.context_lines then
+    self.context_lines = client_config.context_lines
   end
 
-  self:check_ollama()
-end
+  self._availability_seq = self._availability_seq + 1
+  local availability_seq = self._availability_seq
+  self.is_active = false
+  self.is_starting = true
 
-function OllamaLifecycle:check_ollama()
-  log:info("Checking Ollama availability at " .. (config.ollama.host or "default"))
+  if not client or not client.check_availability then
+    self.is_starting = false
+    self.is_active = true
+    return
+  end
+
   client.check_availability(function(available, version)
     vim.schedule(function()
+      if availability_seq ~= self._availability_seq then
+        return
+      end
+
+      self.is_starting = false
+      self.is_active = available == true
+
       if available then
-        self.is_active = true
-        log:debug("Ollama is available" .. (version and " (version: " .. version .. ")" or ""))
+        log:debug(active_client_name .. " active" .. (version and " (version: " .. version .. ")" or ""))
       else
-        self.is_active = false
-        log:error(
-          "Ollama check failed - server may be down or unreachable at " .. (config.ollama.host or "default host")
-        )
+        log:warn(active_client_name .. " not available at configured host")
       end
     end)
   end)
 end
 
-function OllamaLifecycle:stop()
+---Stop lifecycle and cancel any pending requests
+function Lifecycle:stop()
+  self._availability_seq = self._availability_seq + 1
   self:cancel_request()
+  self.is_starting = false
   self.is_active = false
 end
 
-function OllamaLifecycle:cancel_request()
+---Cancel any pending request
+function Lifecycle:cancel_request()
   if self.cancel_fn then
     self.cancel_fn()
     self.cancel_fn = nil
   end
-  if self.debounce_timer then
-    self.debounce_timer:stop()
+  if self._debouncer then
+    self._debouncer:close()
+    self._debouncer = nil
   end
 end
 
+---Check if context is the same as last request
 ---@param context table
 ---@return boolean
-function OllamaLifecycle:same_context(context)
+function Lifecycle:same_context(context)
   if self.last_context == nil then
     return false
   end
@@ -106,39 +137,40 @@ function OllamaLifecycle:same_context(context)
     and context.document_text == self.last_context.document_text
 end
 
+---Handle buffer update event
 ---@param buffer integer
 ---@param file_name string
 ---@param event_type string
-function OllamaLifecycle:on_update(buffer, file_name, event_type)
-  if vim.tbl_contains(config.ignore_filetypes, vim.bo.filetype) then
+function Lifecycle:on_update(buffer, file_name, event_type)
+  if vim.tbl_contains(config.ignore_filetypes or {}, vim.bo.filetype) then
     return
   end
 
-  if not self:is_available() then
+  if not self:has_active_client() then
     return
   end
 
   local buffer_text = util.get_text(buffer)
 
   if #buffer_text > 10e6 then
-    log:warn("File is too large to send to Ollama. Skipping...")
+    log:warn("File is too large to send to AI backend. Skipping...")
     return
   end
 
-  local cursor = api.nvim_win_get_cursor(0)
+  local cur = cursor.get_position()
   local text_changed = buffer_text ~= self.last_text
 
   ---@type table
   local context = {
     document_text = buffer_text,
-    cursor = cursor,
+    cursor = cur,
     file_name = file_name,
   }
 
   if text_changed then
     preview:dispose_inlay()
     self:cancel_request()
-    self:debounced_completion(buffer, cursor, context)
+    self:debounced_completion(buffer, cur, context)
   elseif not self:same_context(context) then
     preview:dispose_inlay()
   end
@@ -148,45 +180,44 @@ function OllamaLifecycle:on_update(buffer, file_name, event_type)
   self.last_context = context
 end
 
+---Execute completion after debounce delay
 ---@param buffer integer
----@param cursor integer[]
+---@param cursor_pos integer[]
 ---@param context table
-function OllamaLifecycle:debounced_completion(buffer, cursor, context)
-  if self.debounce_timer then
-    self.debounce_timer:stop()
+function Lifecycle:debounced_completion(buffer, cursor_pos, context)
+  if self._debouncer then
+    self._debouncer:close()
   end
 
-  if not self.debounce_timer then
-    self.debounce_timer = loop.new_timer()
-  end
-
-  self.debounce_timer:start(self.debounce_ms, 0, function()
+  self._debouncer = timer.Debouncer.new(self.debounce_ms, function()
     vim.schedule(function()
-      local current_cursor = api.nvim_win_get_cursor(0)
+      local current_cursor = cursor.get_position()
       self:provide_completion(buffer, current_cursor, context)
     end)
   end)
+  self._debouncer:debounce()
 end
 
+---Main completion provider
 ---@param buffer integer
----@param cursor integer[]
+---@param cursor_pos integer[]
 ---@param context table
-function OllamaLifecycle:provide_completion(buffer, cursor, context)
+function Lifecycle:provide_completion(buffer, cursor_pos, context)
   self.buffer = buffer
-  self.cursor = cursor
-  self.last_provide_time = loop.now()
+  self.cursor = cursor_pos
+  self.last_provide_time = vim.uv.now()
 
-  if not buffer or not api.nvim_buf_is_valid(buffer) then
+  if not buffer or not vim.api.nvim_buf_is_valid(buffer) then
     return
   end
 
-  local current_cursor = api.nvim_win_get_cursor(0)
-  if current_cursor[1] ~= cursor[1] or current_cursor[2] ~= cursor[2] then
+  local current_cursor = cursor.get_position()
+  if current_cursor[1] ~= cursor_pos[1] or current_cursor[2] ~= cursor_pos[2] then
     self:debounced_completion(buffer, current_cursor, context)
     return
   end
 
-  local text_split = util.get_text_before_after_cursor(cursor)
+  local text_split = util.get_text_before_after_cursor(cursor_pos)
   local line_before_cursor = text_split.text_before_cursor
   local line_after_cursor = text_split.text_after_cursor
 
@@ -194,21 +225,23 @@ function OllamaLifecycle:provide_completion(buffer, cursor, context)
     return
   end
 
-  local status, prefix = pcall(util.get_cursor_prefix, buffer, cursor)
+  local status, prefix = pcall(util.get_cursor_prefix, buffer, cursor_pos)
   if not status then
     return
   end
 
   self.request_id = self.request_id + 1
-  if self.request_id > self.max_request_id then
-    self.request_id = 1
-  end
   local current_request_id = self.request_id
 
-  local suffix = util.get_cursor_suffix(buffer, cursor) or ""
+  local suffix = util.get_cursor_suffix(buffer, cursor_pos) or ""
   self:cancel_request()
 
-  self.cancel_fn = client.queue_request(prefix, suffix, function(_token, accumulated)
+  local client = clients.get_active()
+  if not client then
+    return
+  end
+
+  self.cancel_fn = client.complete(prefix, suffix, context, function(_token, accumulated)
     if current_request_id ~= self.request_id then
       return
     end
@@ -229,17 +262,20 @@ function OllamaLifecycle:provide_completion(buffer, cursor, context)
   end)
 end
 
+---Process and render completion
 ---@param completion string
 ---@param prefix string
 ---@param line_before_cursor string
 ---@param line_after_cursor string
-function OllamaLifecycle:handle_completion(completion, prefix, line_before_cursor, line_after_cursor)
+function Lifecycle:handle_completion(completion, prefix, line_before_cursor, line_after_cursor)
   local processed_completion = completion
 
+  -- Strip prefix if it matches
   if #prefix > 0 and string.sub(processed_completion, 1, #prefix) == prefix then
     processed_completion = processed_completion:sub(#prefix + 1)
   end
 
+  -- Strip line_before_cursor if it matches
   if #line_before_cursor > 0 and string.sub(processed_completion, 1, #line_before_cursor) == line_before_cursor then
     processed_completion = processed_completion:sub(#line_before_cursor + 1)
   end
@@ -268,15 +304,15 @@ function OllamaLifecycle:handle_completion(completion, prefix, line_before_curso
     return
   end
 
-  local prior_delete = 0
-  self:render_completion(final_completion, prior_delete, line_before_cursor, line_after_cursor)
+  self:render_completion(final_completion, 0, line_before_cursor, line_after_cursor)
 end
 
+---Render completion with inlay
 ---@param completion_text string
 ---@param prior_delete number
 ---@param line_before_cursor string
 ---@param line_after_cursor string
-function OllamaLifecycle:render_completion(completion_text, prior_delete, line_before_cursor, line_after_cursor)
+function Lifecycle:render_completion(completion_text, prior_delete, line_before_cursor, line_after_cursor)
   if not self.buffer or not vim.api.nvim_buf_is_valid(self.buffer) then
     return
   end
@@ -292,6 +328,4 @@ function OllamaLifecycle:render_completion(completion_text, prior_delete, line_b
   end
 end
 
-OllamaLifecycle.debounce_timer = loop.new_timer()
-
-return OllamaLifecycle
+return Lifecycle
