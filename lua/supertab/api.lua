@@ -9,7 +9,7 @@ local clients = require("supertab.clients")
 
 local M = {}
 
----Check if supertab is enabled (not explicitly disabled)
+---Check if supertab is enabled (not manually disabled)
 ---@return boolean
 M.is_enabled = function()
   return vim.g.SUPERTAB_DISABLED ~= 1
@@ -24,12 +24,16 @@ end
 ---Start supertab completion
 M.start = function()
   local active_client_name = config.get_active_client()
+
+  if not active_client_name then
+    log:warn("No client configured. Set client.<client_name> in config (e.g., client.ollama = {}).")
+    return
+  end
+
   local client_config = config.get_client_config(active_client_name)
 
-  if not client_config or not client_config.enable then
-    log:warn(
-      active_client_name .. " backend is not enabled. Set clients." .. active_client_name .. ".enable=true in config."
-    )
+  if not client_config then
+    log:warn(active_client_name .. " backend is not configured.")
     return
   end
 

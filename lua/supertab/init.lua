@@ -45,7 +45,7 @@ M.setup = function(opts)
     log:warn("nvim-cmp not available but inline completion is disabled. Source not registered.")
   end
 
-  -- Auto-start if enabled
+  -- Start supertab
   api.start()
 end
 

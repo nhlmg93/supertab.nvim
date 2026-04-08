@@ -221,6 +221,13 @@ function M.on_snippet_jump()
     -- Anchor throb at the $2 cursor position
     local clients_mod = require("supertab.clients")
     local client_name = config.get_active_client()
+
+    if not client_name then
+      log:error("Doc snippet: no active client configured")
+      stop_throb()
+      return true
+    end
+
     local client = clients_mod.get(client_name)
 
     if not client then

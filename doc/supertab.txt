@@ -54,7 +54,6 @@ Configure via the setup function: >
 
     require("supertab").setup({
       mode = "completion",
-      client = "ollama",
       ignore_filetypes = { "TelescopePrompt" },
       disable_inline_completion = false,
       condition = function()
@@ -65,19 +64,16 @@ Configure via the setup function: >
         suggestion_color = "#808080",
         cterm = 244,
       },
-      clients = {
-        ollama = {
-          enable = true,
-          host = "http://localhost:11434",
-          model = "codellama",
-          temperature = 0.2,
-          top_p = 0.9,
-          top_k = 40,
-          max_tokens = 16,
-          doc_max_tokens = 512,
-          debounce_ms = 50,
-          context_lines = 10,
-        },
+      ollama = {
+        host = "http://localhost:11434",
+        model = "codellama",
+        temperature = 0.2,
+        top_p = 0.9,
+        top_k = 40,
+        max_tokens = 16,
+        doc_max_tokens = 512,
+        debounce_ms = 50,
+        context_lines = 10,
       },
       doc_snippet = {
         enabled = true,
@@ -89,14 +85,12 @@ Configure via the setup function: >
 Configuration Options: ~
 
     mode                        "completion" or "doc" (default: "completion")
-    client                      Active client name (default: "ollama")
     ignore_filetypes            Table of filetypes to disable (default: {})
     disable_inline_completion   Disable inline previews (default: false)
     condition                   Function returning true to disable (default: returns false)
     log_level                   Log level: "off", "trace", "debug", "info", "warn", "error"
     color                       Color configuration table
-    clients                     Per-client configuration table
-      ollama                    Built-in Ollama client configuration
+    ollama                      Ollama client configuration (only ONE client at a time)
     doc_snippet                 Doc snippet configuration table
       enabled                   Enable ~doc snippets (default: true)
       trigger                   Trigger text (default: "~doc")

@@ -41,11 +41,8 @@ Or with explicit setup:
   "nhlmg93/supertab.nvim",
   config = function()
     require("supertab").setup({
-      client = "ollama",
-      clients = {
-        ollama = {
-          model = "codellama",
-        },
+      ollama = {
+        model = "codellama",
       },
     })
   end,
@@ -70,9 +67,6 @@ require("supertab").setup({
   -- Mode: "completion" (default) or "doc"
   mode = "completion",
 
-  -- Active client
-  client = "ollama",
-
   -- Disable for specific filetypes
   ignore_filetypes = { "TelescopePrompt", "NvimTree" },
 
@@ -93,20 +87,17 @@ require("supertab").setup({
     cterm = 244,
   },
 
-  -- Per-client configuration
-  clients = {
-    ollama = {
-      enable = true,
-      host = "http://localhost:11434",
-      model = "codellama", -- or "codestral", "deepseek-coder", etc.
-      temperature = 0.2,
-      top_p = 0.9,
-      top_k = 40,
-      max_tokens = 16,
-      doc_max_tokens = 512,
-      debounce_ms = 50,
-      context_lines = 10,
-    },
+  -- Ollama client configuration (only ONE client at a time)
+  ollama = {
+    host = "http://localhost:11434",
+    model = "codellama", -- or "codestral", "deepseek-coder", etc.
+    temperature = 0.2,
+    top_p = 0.9,
+    top_k = 40,
+    max_tokens = 16,
+    doc_max_tokens = 512,
+    debounce_ms = 50,
+    context_lines = 10,
   },
 
   -- Doc snippet configuration

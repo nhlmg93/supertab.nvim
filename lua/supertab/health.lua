@@ -41,12 +41,12 @@ M.check = function()
     local active_client = config.get_active_client()
     local client_config = config.get_client_config(active_client)
 
-    if client_config and client_config.enable then
+    if client_config then
       report("Active client: " .. active_client)
       report(active_client .. " host: " .. (client_config.host or "default"))
       report(active_client .. " model: " .. (client_config.model or "default"))
     else
-      report("Active client: none (disabled)")
+      report("Active client: none (not configured)")
     end
   else
     report("Configuration module: failed to load")
@@ -60,20 +60,11 @@ M.check = function()
     report("nvim-cmp: not installed (optional)")
   end
 
-  -- Load configured built-in clients so registration has occurred before inspection.
+  -- Load configured built-in client so registration has occurred before inspection.
   if config_ok and config then
-    local client_names = {}
-
-    if config.clients then
-      for name, _ in pairs(config.clients) do
-        client_names[name] = true
-      end
-    end
-
-    client_names[config.get_active_client()] = true
-
-    for name, _ in pairs(client_names) do
-      pcall(require, "supertab.clients." .. name)
+    local client_name = config.get_active_client()
+    if client_name then
+      pcall(require, "supertab.clients." .. client_name)
     end
   end
 

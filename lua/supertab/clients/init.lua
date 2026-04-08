@@ -4,9 +4,9 @@ local M = {}
 ---@class SupertabClient
 ---@field name string Client identifier
 ---@field available boolean Whether client is available
----@field config SupertabClientConfig Configuration for this client
+---@field config SupertabClientInstanceConfig Configuration for this client
 
----@class SupertabClientConfig
+---@class SupertabClientInstanceConfig
 ---@field enable boolean Whether client is enabled
 ---@field host? string (for HTTP clients)
 ---@field model? string Model name

@@ -1,4 +1,4 @@
----Configuration management with support for multiple clients
+---Configuration management (single client only)
 local M = {}
 
 ---@class SupertabDocSnippetConfig
@@ -14,15 +14,10 @@ local M = {}
 ---@field condition? fun(): boolean
 ---@field log_level? "off" | "trace" | "debug" | "info" | "warn" | "error"
 ---@field color? SupertabColorConfig
----@field client? string Active client name
----@field clients? SupertabClientsConfig
+---@field ollama? SupertabClientOllamaConfig Ollama client configuration
 ---@field doc_snippet? SupertabDocSnippetConfig
 
----@class SupertabClientsConfig
----@field ollama? SupertabClientOllamaConfig
-
 ---@class SupertabClientOllamaConfig
----@field enable? boolean
 ---@field host? string
 ---@field model? string
 ---@field temperature? number
@@ -50,23 +45,17 @@ local default_config = {
   log_level = "warn",
   color = nil,
 
-  -- Default to ollama client
-  client = "ollama",
-
-  -- Per-client configuration
-  clients = {
-    ollama = {
-      enable = true,
-      host = "http://localhost:11434",
-      model = "codellama",
-      temperature = 0.2,
-      top_p = 0.9,
-      top_k = 40,
-      max_tokens = 16,
-      doc_max_tokens = 512,
-      debounce_ms = 50,
-      context_lines = 10,
-    },
+  -- Ollama client configuration (default client)
+  ollama = {
+    host = "http://localhost:11434",
+    model = "codellama",
+    temperature = 0.2,
+    top_p = 0.9,
+    top_k = 40,
+    max_tokens = 16,
+    doc_max_tokens = 512,
+    debounce_ms = 50,
+    context_lines = 10,
   },
 
   doc_snippet = {
@@ -83,34 +72,45 @@ M.setup = function(opts)
   M.config = vim.tbl_deep_extend("force", vim.deepcopy(default_config), opts or {})
 end
 
+-- Known non-client config keys to exclude when looking for client configs
+local NON_CLIENT_KEYS = {
+  mode = true,
+  ignore_filetypes = true,
+  disable_inline_completion = true,
+  condition = true,
+  log_level = true,
+  color = true,
+  doc_snippet = true,
+  client = true, -- deprecated: old wrapper structure
+}
+
 ---Get client configuration
 ---@param client_name string Client name
 ---@return table|nil Client config
 function M.get_client_config(client_name)
-  if M.config.clients and M.config.clients[client_name] then
-    return M.config.clients[client_name]
+  local client_config = M.config[client_name]
+  if client_config and type(client_config) == "table" and not NON_CLIENT_KEYS[client_name] then
+    return client_config
   end
   return nil
 end
 
----Check if client is enabled
+---Check if client is configured
 ---@param client_name string Client name
 ---@return boolean
 function M.is_client_enabled(client_name)
-  local client_config = M.get_client_config(client_name)
-  return client_config and client_config.enable == true
+  return M.get_client_config(client_name) ~= nil
 end
 
----Get active client name
----@return string
+---Get active client name (first configured client found)
+---@return string|nil
 function M.get_active_client()
-  return M.config.client or "ollama"
-end
-
----Set active client
----@param client_name string
-function M.set_active_client(client_name)
-  M.config.client = client_name
+  for name, _ in pairs(M.config) do
+    if not NON_CLIENT_KEYS[name] and type(M.config[name]) == "table" then
+      return name
+    end
+  end
+  return nil
 end
 
 return setmetatable(M, {
